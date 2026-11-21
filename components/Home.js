@@ -68,7 +68,7 @@ export default function Home() {
   const go = (ticker) => router.push(`/company/${ticker}`);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:max-w-6xl lg:px-8 lg:pt-10">
+    <main className="mx-auto max-w-lg px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:max-w-6xl lg:px-8 lg:pt-10">
       {/* 서비스가 무엇인지(제목·검색)를 먼저, 시장 지표는 그 옆·아래에. 두 칸은 서로 높이에 영향을 주지 않습니다. */}
       <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:items-start lg:gap-10">
         <div>
@@ -184,6 +184,6 @@ export default function Home() {
 
       {/* 광고는 서비스 설명을 가로막지 않도록 맨 아래 */}
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_HOME} className="mt-6" />
-    </div>
+    </main>
   );
 }

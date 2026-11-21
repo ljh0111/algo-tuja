@@ -27,3 +27,8 @@ button:not(:disabled):active { transform: scale(0.97); }
 /* 가로 스와이프 영역: 스크롤바 숨김(스크롤은 그대로) */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 애드센스가 채울 광고가 없으면 빈 "광고" 상자를 숨깁니다 */
+aside:has(> ins.adsbygoogle[data-ad-status="unfilled"]) {
+  display: none;
+}
