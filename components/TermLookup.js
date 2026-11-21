@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Sparkles, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 // containerRef 안에서 사용자가 텍스트를 드래그 선택했을 때만 작은 "설명보기" 버튼이 뜹니다.
 // 평소에는 화면에 아무것도 표시되지 않아 방해가 되지 않습니다.
@@ -66,32 +66,32 @@ export default function TermLookup({ containerRef, context }) {
       {selection && (
         <button
           onClick={lookup}
-          className="fixed z-40 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-lg"
-          style={{ left: selection.x, top: selection.y - 10, background: "#16233F" }}
+          className="fixed z-40 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+          style={{ left: selection.x, top: selection.y - 10, background: "#191F28" }}
         >
-          <Sparkles size={12} /> 설명보기
+          용어 설명
         </button>
       )}
 
       {popup && (
         <div className="fixed inset-x-4 bottom-4 z-50 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-80">
-          <div className="rounded-3xl border p-4 shadow-xl" style={{ background: "#FFFFFF", borderColor: "#E4E6E1" }}>
+          <div className="animate-sheet-up rounded-xl border p-4 shadow-xl" style={{ background: "#FFFFFF", borderColor: "#E5E8EB" }}>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold" style={{ color: "#C98A2E" }}>{popup.text}</span>
-              <button onClick={() => setPopup(null)}>
-                <X size={16} style={{ color: "#8A90A0" }} />
+              <span className="text-xs font-semibold" style={{ color: "#3182F6" }}>{popup.text}</span>
+              <button onClick={() => setPopup(null)} aria-label="닫기" className="rounded-full p-1.5 hover:bg-black/5">
+                <X size={16} style={{ color: "#5B6573" }} />
               </button>
             </div>
             {popup.status === "loading" && (
-              <div className="flex items-center gap-2 text-xs" style={{ color: "#8A90A0" }}>
+              <div className="flex items-center gap-2 text-xs" style={{ color: "#5B6573" }}>
                 <Loader2 size={13} className="animate-spin" /> 설명을 찾는 중...
               </div>
             )}
             {popup.status === "done" && (
-              <p className="text-sm leading-relaxed" style={{ color: "#16233F" }}>{popup.explanation}</p>
+              <p className="text-sm leading-relaxed" style={{ color: "#191F28" }}>{popup.explanation}</p>
             )}
             {popup.status === "error" && (
-              <p className="text-xs" style={{ color: "#B5493A" }}>설명을 가져오지 못했어요. 다시 시도해주세요.</p>
+              <p className="text-xs" style={{ color: "#C0392B" }}>설명을 가져오지 못했어요. 다시 시도해주세요.</p>
             )}
           </div>
         </div>

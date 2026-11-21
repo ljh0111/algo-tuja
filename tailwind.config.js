@@ -7,25 +7,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        paper: "#F6F7F4",
+        paper: "#F2F4F6",
         "paper-raised": "#FFFFFF",
-        ink: "#16233F",
-        "ink-soft": "#4B5670",
-        "ink-faint": "#8A90A0",
-        line: "#E4E6E1",
-        amber: "#C98A2E",
-        "amber-soft": "#F3E3C8",
-        "brand-blue": "#3D5A80",
-        "brand-blue-soft": "#E4EAF1",
-        green: "#4F7942",
-        "green-soft": "#E5EEE1",
-        red: "#B5493A",
-        "red-soft": "#F3E1DD",
+        ink: "#191F28",
+        "ink-soft": "#4E5968",
+        "ink-faint": "#5B6573", // 흰색·#F2F4F6 위 작은 글자 4.5:1 이상
+        line: "#E5E8EB",
+        // shortcut: "amber" token now holds the trust-blue accent; rename across components if the palette changes again
+        amber: "#1B64DA", // 작은 파란 글자·흰 글자 버튼 모두 4.5:1 이상
+        "amber-soft": "#E8F3FF",
+        "brand-blue": "#2B4C7E",
+        "brand-blue-soft": "#E9EEF6",
+        green: "#1E7A4C",
+        "green-soft": "#E3F2EA",
+        red: "#C0392B",
+        up: "#C81E5A", // 상승: 공포 게이지의 주홍빛 빨강과 구분되는 자홍빛, 작은 글자 대비 5:1
+        down: "#1B64DA", // 하락
+        "red-soft": "#FBE6E3",
+      },
+      // Motion identity (Corporate): one curve, three durations (150/250/400ms)
+      transitionTimingFunction: { brand: "cubic-bezier(0.2, 0, 0, 1)" },
+      keyframes: {
+        "fade-up": { from: { opacity: "0", transform: "translateY(6px)" }, to: { opacity: "1", transform: "none" } },
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+        pop: { from: { opacity: "0", transform: "translateY(-4px) scale(0.98)" }, to: { opacity: "1", transform: "none" } },
+        "sheet-up": { from: { opacity: "0", transform: "translateY(24px)" }, to: { opacity: "1", transform: "none" } },
+      },
+      animation: {
+        "fade-up": "fade-up 400ms cubic-bezier(0.2, 0, 0, 1) both",
+        "fade-in": "fade-in 250ms cubic-bezier(0.2, 0, 0, 1) both",
+        pop: "pop 150ms cubic-bezier(0.2, 0, 0, 1) both",
+        "sheet-up": "sheet-up 400ms cubic-bezier(0.05, 0.7, 0.1, 1) both",
       },
       fontFamily: {
-        serif: ["'Noto Serif KR'", "serif"],
-        sans: ["'Noto Sans KR'", "sans-serif"],
-        mono: ["'JetBrains Mono'", "monospace"],
+        // Headings use Pretendard bold (fintech standard); "serif" key kept so components stay unchanged
+        serif: ["'Pretendard Variable'", "Pretendard", "sans-serif"],
+        sans: ["'Pretendard Variable'", "Pretendard", "sans-serif"],
+        mono: ["'Pretendard Variable'", "Pretendard", "sans-serif"], // figures: tabular-nums set globally
       },
     },
   },

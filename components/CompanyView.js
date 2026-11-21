@@ -4,19 +4,44 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
-  Sparkles, ChevronDown, ChevronRight, ExternalLink, X, ArrowRight,
-  Info, Check, AlertCircle, Loader2, ArrowLeft, TrendingUp,
+  ChevronDown, ChevronRight, ExternalLink, X, ArrowRight,
+  Info, Check, AlertCircle, Loader2, ArrowLeft, TrendingUp, Heart,
 } from "lucide-react";
+import { addRecent, isFavorite, toggleFavorite } from "@/lib/watchlist";
+
+const TABS = [
+  ["overview", "기업 이해"],
+  ["chart", "차트"],
+  ["financials", "실적"],
+  ["issues", "이슈"],
+  ["checkpoints", "체크포인트"],
+  ["thesis", "투자 논리"],
+];
 import { SourceBadge, FlowChain, SectionLabel } from "@/components/ui";
 import TermLookup from "@/components/TermLookup";
+import StockSentiment from "@/components/StockSentiment";
+import PriceChart from "@/components/PriceChart";
+import AdSlot from "@/components/AdSlot";
 
-const PIE_COLORS = ["#16233F", "#C98A2E", "#3D5A80", "#4F7942", "#B5493A"];
+const PIE_COLORS = ["#3182F6", "#3DC3A6", "#79C6F2", "#FFC342", "#F79A3B"]; // single blue scale: segments are categories, not good/bad
 const METRIC_KEY_MAP = { "매출액": "revenue", "영업이익": "operatingProfit", "당기순이익": "netIncome" };
 
 function formatWon(n) {
   if (n === null || n === undefined) return "-";
   const eok = n / 100_000_000; // 억원 단위
   return `${eok.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}억원`;
+}
+
+// 전년 대비 증감: 한국 시장 관례대로 상승=빨강, 하락=파랑
+function YoY({ now, prev }) {
+  if (!prev) return <div className="mt-0.5 text-xs text-ink-faint">전년 {formatWon(prev)}</div>;
+  const pct = ((now - prev) / Math.abs(prev)) * 100;
+  const up = pct >= 0;
+  return (
+    <div className="mt-0.5 text-xs text-ink-faint">
+      전년 대비 <span className={`font-semibold ${up ? "text-up" : "text-down"}`}>{up ? "+" : ""}{pct.toFixed(1)}%</span>
+    </div>
+  );
 }
 
 /* ----------------------------- 재무 추이 그래프 모달 ----------------------------- */
@@ -27,14 +52,14 @@ function TrendModal({ metricLabel, loading, error, trend, onClose }) {
     .map((d) => ({ year: `${d.year}`, value: Math.round(d[field] / 100_000_000) }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-0 sm:items-center sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex animate-fade-in items-end justify-center bg-black/40 px-0 sm:items-center sm:px-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-paper-raised sm:max-w-lg sm:rounded-3xl"
+        className="max-h-[92vh] w-full animate-sheet-up overflow-y-auto rounded-t-xl bg-paper-raised sm:max-w-lg sm:rounded-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-line bg-paper-raised px-6 py-4">
           <span className="text-sm font-semibold text-ink">{metricLabel} 추이</span>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-black/5"><X size={18} className="text-ink-faint" /></button>
+          <button onClick={onClose} aria-label="닫기" className="rounded-full p-2.5 hover:bg-black/5"><X size={18} className="text-ink-faint" /></button>
         </div>
 
         <div className="px-6 py-6">
@@ -55,17 +80,17 @@ function TrendModal({ metricLabel, loading, error, trend, onClose }) {
               <div className="h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="#E4E6E1" vertical={false} />
-                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#8A90A0" }} axisLine={{ stroke: "#E4E6E1" }} tickLine={false} />
+                    <CartesianGrid stroke="#E5E8EB" vertical={false} />
+                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#5B6573" }} axisLine={{ stroke: "#E5E8EB" }} tickLine={false} />
                     <YAxis
-                      tick={{ fontSize: 11, fill: "#8A90A0" }}
+                      tick={{ fontSize: 11, fill: "#5B6573" }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v) => `${v.toLocaleString("ko-KR")}억`}
                       width={64}
                     />
                     <RTooltip formatter={(v) => [`${v.toLocaleString("ko-KR")}억원`, metricLabel]} />
-                    <Line type="monotone" dataKey="value" stroke="#C98A2E" strokeWidth={2.5} dot={{ r: 3, fill: "#C98A2E" }} />
+                    <Line type="monotone" dataKey="value" stroke="#3182F6" strokeWidth={2.5} dot={{ r: 3, fill: "#3182F6" }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -108,14 +133,13 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
   }, [input, company.name, context]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-0 sm:items-center sm:px-4" onClick={onClose}>
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-paper-raised sm:max-w-xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex animate-fade-in items-end justify-center bg-black/40 px-0 sm:items-center sm:px-4" onClick={onClose}>
+      <div className="max-h-[92vh] w-full animate-sheet-up overflow-y-auto rounded-t-xl bg-paper-raised sm:max-w-xl sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between border-b border-line bg-paper-raised px-6 py-4">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-amber" />
-            <span className="text-sm font-semibold text-ink">AI 투자 논리 점검 · {company.name}</span>
+            <span className="text-sm font-semibold text-ink">투자 논리 점검 · {company.name}</span>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-black/5"><X size={18} className="text-ink-faint" /></button>
+          <button onClick={onClose} aria-label="닫기" className="rounded-full p-2.5 hover:bg-black/5"><X size={18} className="text-ink-faint" /></button>
         </div>
 
         <div className="px-6 py-5">
@@ -127,14 +151,14 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="예: 요즘 관련 뉴스가 잘된다고 해서요 / 친구가 추천해서요"
                 rows={3}
-                className="w-full resize-none rounded-2xl border border-line bg-paper px-4 py-3 text-sm text-ink outline-none"
+                className="w-full resize-none rounded-lg border border-line bg-paper px-4 py-3 text-sm text-ink outline-none"
               />
               <button
                 onClick={runCheck}
                 disabled={!input.trim() || status === "loading"}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-sm font-semibold text-white disabled:opacity-40"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber py-3.5 text-sm font-semibold text-white disabled:opacity-40"
               >
-                {status === "loading" ? (<><Loader2 size={16} className="animate-spin" /> 투자 논리 분석 중...</>) : (<><Sparkles size={15} /> AI 투자 논리 점검하기</>)}
+                {status === "loading" ? (<><Loader2 size={16} className="animate-spin" /> 투자 논리 분석 중...</>) : (<>투자 논리 점검하기 <ArrowRight size={15} aria-hidden="true" /></>)}
               </button>
               {status === "error" && (
                 <div className="mt-3 flex items-center gap-2 text-xs text-red"><AlertCircle size={14} /> 분석에 실패했어요. 다시 시도해주세요.</div>
@@ -180,9 +204,9 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-line bg-paper p-4 text-sm leading-relaxed text-ink-soft">{result.guidance}</div>
+              <div className="rounded-lg border border-line bg-paper p-4 text-sm leading-relaxed text-ink-soft">{result.guidance}</div>
               <div className="text-center text-xs text-ink-faint">최종 투자 판단은 본인의 몫입니다. 이 분석은 판단을 대신하지 않습니다.</div>
-              <button onClick={() => { setStatus("idle"); setInput(""); setResult(null); }} className="w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-ink-soft">
+              <button onClick={() => { setStatus("idle"); setInput(""); setResult(null); }} className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-ink-soft">
                 다시 입력하기
               </button>
             </div>
@@ -209,6 +233,8 @@ export default function CompanyView({ ticker }) {
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState(null);
   const [activeMetric, setActiveMetric] = useState(null); // "매출액" | "영업이익" | "당기순이익" | null
+  const [fav, setFav] = useState(false);
+  const [activeTab, setActiveTab] = useState(TABS[0][0]);
 
   // STEP 1·2(빠른 부분)를 먼저 불러옵니다.
   useEffect(() => {
@@ -243,6 +269,25 @@ export default function CompanyView({ ticker }) {
       .finally(() => { if (!cancelled) setIssuesLoading(false); });
     return () => { cancelled = true; };
   }, [ticker, data]);
+
+  // 기업 정보가 뜨면 최근 본 종목에 기록하고 관심 여부를 읽습니다.
+  useEffect(() => {
+    if (!data?.company) return;
+    addRecent(data.company);
+    setFav(isFavorite(data.company.ticker));
+  }, [data]);
+
+  // 스크롤 위치에 맞춰 상단 탭 강조
+  useEffect(() => {
+    if (!data?.company) return;
+    const els = TABS.map(([id]) => document.getElementById(id)).filter(Boolean);
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setActiveTab(e.target.id)),
+      { rootMargin: "-130px 0px -60% 0px" }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [data]);
 
   if (error) {
     return <div className="mx-auto max-w-lg px-6 py-20 text-center text-sm text-red">데이터를 불러오지 못했습니다: {error}</div>;
@@ -280,7 +325,7 @@ export default function CompanyView({ ticker }) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-5 pb-28 pt-6 sm:px-6" ref={contentRef}>
+    <div className="mx-auto max-w-2xl px-5 pb-28 pt-6 sm:px-6 lg:max-w-6xl lg:px-8" ref={contentRef}>
       <TermLookup containerRef={contentRef} context={`${company.name} 기업 설명 페이지`} />
       <div className="mb-5">
         <button onClick={() => router.push("/")} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft">
@@ -288,37 +333,79 @@ export default function CompanyView({ ticker }) {
         </button>
       </div>
 
+      <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start lg:gap-10">
+      <aside className="no-scrollbar lg:sticky lg:top-[64px] lg:max-h-[calc(100vh-80px)] lg:overflow-y-auto lg:pb-4">
       {/* Section 1 */}
       <div className="mb-8">
-        <div className="text-xs font-medium text-ink-faint">{company.industry} · {company.ticker}</div>
-        <h1 className="mt-1 font-serif text-2xl font-semibold text-ink">{company.name}</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-lg font-bold text-white" aria-hidden="true">{company.name.slice(0, 1)}</div>
+          <div>
+            <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-ink">
+              {company.name} <span className="text-sm font-medium text-ink-faint">{company.ticker}</span>
+            </h1>
+            <div className="mt-0.5 text-xs text-ink-faint">{company.industry}</div>
+          </div>
+          <button
+            onClick={() => setFav(toggleFavorite(company))}
+            aria-pressed={fav}
+            aria-label={fav ? "즐겨찾기에서 빼기" : "즐겨찾기에 추가"}
+            className="ml-auto rounded-full p-2.5 hover:bg-black/5"
+          >
+            <Heart size={22} className={fav ? "fill-up text-up" : "text-ink-faint"} />
+          </button>
+        </div>
         {aiGenerated && (
-          <div className="mt-2 flex items-center gap-1.5 rounded-full bg-amber-soft px-3 py-1.5 text-xs font-medium text-amber w-fit">
-            <AlertCircle size={12} /> AI가 생성한 기업 정보입니다 — 참고용으로만 확인하고, 투자 전 실제 공시자료로 검증하세요.
+          <div className="mt-3 flex items-start gap-1.5 border-l-2 border-amber bg-amber-soft/50 px-3 py-2 text-xs leading-relaxed text-ink-soft">
+            <AlertCircle size={13} className="mt-0.5 shrink-0 text-amber" aria-hidden="true" /> AI가 생성한 기업 정보입니다 — 참고용으로만 확인하고, 투자 전 실제 공시자료로 검증하세요.
           </div>
         )}
       </div>
 
+      <div className="mb-6">
+        <StockSentiment ticker={company.ticker} name={company.name} />
+      </div>
+
+      </aside>
+
+      <main className="min-w-0">
+      <nav className="sticky top-0 z-20 lg:top-[45px] -mx-5 mb-6 flex gap-1 overflow-x-auto bg-paper/95 px-5 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0" aria-label="섹션 이동">
+        {TABS.map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            aria-current={activeTab === id ? "true" : undefined}
+            className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold ${activeTab === id ? "bg-paper-raised text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       {/* Section 2 — 10초 이해 */}
-      <section className="mb-10">
-        <SectionLabel eyebrow="STEP 1" title="10초 만에 기업 이해하기" />
-        <div className="rounded-3xl border border-line bg-paper-raised p-5">
+      <section id="overview" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "0ms" }}>
+        <SectionLabel eyebrow="01" title="10초 만에 기업 이해하기" />
+        <div className="rounded-2xl bg-paper-raised p-5">
           <p className="text-sm leading-relaxed text-ink">{company.oneLiner}</p>
-          <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <dl className="mt-4 space-y-3 border-t border-line pt-4 text-sm">
             {[["대표 제품", company.products], ["주요 고객", company.customers], ["주요 경쟁사", company.competitors]].map(([label, val]) => (
-              <div key={label} className="rounded-2xl bg-paper px-3.5 py-2.5">
-                <div className="text-[11px] font-medium text-ink-faint">{label}</div>
-                <div className="mt-0.5 text-xs leading-relaxed text-ink-soft">{val}</div>
+              <div key={label} className="flex gap-4">
+                <dt className="w-20 shrink-0 text-ink-faint">{label}</dt>
+                <dd className="leading-relaxed text-ink">{val}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
       </section>
 
       {/* Section 3 — 실시간 재무 실적 (DART) */}
-      <section className="mb-10">
-        <SectionLabel eyebrow="STEP 2" title="최근 실적은 어떤가요?" />
-        <div className="rounded-3xl border border-line bg-paper-raised p-5">
+      <section id="chart" className="mb-10 scroll-mt-32">
+        <SectionLabel eyebrow="02" title="주가 흐름은 어떤가요?" />
+        <PriceChart ticker={company.ticker} />
+      </section>
+
+      <section id="financials" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "80ms" }}>
+        <SectionLabel eyebrow="03" title="최근 실적은 어떤가요?" />
+        <div className="rounded-2xl bg-paper-raised p-5">
           {financials ? (
             <>
               <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink-faint">
@@ -332,16 +419,14 @@ export default function CompanyView({ ticker }) {
                     <button
                       key={key}
                       onClick={() => openTrend(key)}
-                      className="rounded-2xl bg-paper px-4 py-3 text-left transition-colors hover:bg-amber-soft/60"
+                      className="rounded-xl bg-paper px-4 py-3 text-left transition-colors hover:bg-[#E9ECEF]"
                     >
                       <div className="flex items-center justify-between text-xs font-medium text-ink-faint">
                         {key}
                         <TrendingUp size={12} className="text-ink-faint" />
                       </div>
-                      <div className="mt-1 font-mono text-base font-semibold text-ink">{formatWon(acc.thisYear)}</div>
-                      {acc.lastYear !== null && (
-                        <div className="mt-0.5 text-[11px] text-ink-faint">전년 {formatWon(acc.lastYear)}</div>
-                      )}
+                      <div className="mt-1 font-mono text-lg font-bold tracking-tight text-ink">{formatWon(acc.thisYear)}</div>
+                      {acc.lastYear !== null && <YoY now={acc.thisYear} prev={acc.lastYear} />}
                       <div className="mt-1 text-[10px] font-medium text-amber">추이 그래프 보기</div>
                     </button>
                   );
@@ -388,10 +473,10 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 4+5 — 실시간 뉴스 기반 이슈 */}
-      <section className="mb-10">
-        <SectionLabel eyebrow="STEP 3" title="요즘 이 회사에 무슨 일이 있나요?" />
+      <section id="issues" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "160ms" }}>
+        <SectionLabel eyebrow="04" title="요즘 이 회사에 무슨 일이 있나요?" />
         {issuesLoading && (
-          <div className="flex items-center gap-2 rounded-2xl border border-line bg-paper-raised px-4 py-4 text-xs text-ink-faint">
+          <div className="flex items-center gap-2 rounded-2xl bg-paper-raised px-4 py-4 text-xs text-ink-faint">
             <Loader2 size={14} className="animate-spin" /> 최신 뉴스를 분석해서 핵심 이슈를 정리하는 중이에요...
           </div>
         )}
@@ -405,7 +490,7 @@ export default function CompanyView({ ticker }) {
           {issues.map((issue, i) => {
             const open = openIssue === i;
             return (
-              <div key={issue.title} className="overflow-hidden rounded-3xl border border-line bg-paper-raised">
+              <div key={issue.title} className="overflow-hidden rounded-2xl bg-paper-raised">
                 <button onClick={() => setOpenIssue(open ? null : i)} className="flex w-full items-center justify-between px-5 py-4 text-left">
                   <span className="text-sm font-semibold text-ink">{i + 1}. {issue.title}</span>
                   <ChevronDown size={16} className="text-ink-faint" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
@@ -433,15 +518,17 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 6 — 체크포인트 */}
-      <section className="mb-10">
-        <SectionLabel eyebrow="STEP 4" title="앞으로 무엇을 봐야 할까요?" />
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_COMPANY} className="mb-10" />
+
+      <section id="checkpoints" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "240ms" }}>
+        <SectionLabel eyebrow="05" title="앞으로 무엇을 봐야 할까요?" />
         <div className="space-y-2.5">
           {company.checkpoints.map((cp, i) => {
             const open = openCheckpoint === i;
             return (
-              <div key={cp.title} className="overflow-hidden rounded-2xl border border-line bg-paper-raised">
+              <div key={cp.title} className="overflow-hidden rounded-2xl bg-paper-raised">
                 <button onClick={() => setOpenCheckpoint(open ? null : i)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-soft text-xs font-semibold text-amber">{i + 1}</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-line text-xs font-semibold text-ink-soft">{i + 1}</span>
                   <span className="flex-1 text-sm font-medium text-ink">{cp.title}</span>
                   <ChevronRight size={14} className="text-ink-faint" style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform .2s" }} />
                 </button>
@@ -453,10 +540,10 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 7 — 투자 논리 점검 */}
-      <section>
-        <SectionLabel eyebrow="STEP 5" title="왜 이 회사에 투자하려고 하시나요?" />
-        <div className="rounded-3xl bg-ink p-5">
-          <p className="mb-3 text-sm leading-relaxed text-white/80">
+      <section id="thesis" className="scroll-mt-32 animate-fade-up" style={{ animationDelay: "320ms" }}>
+        <SectionLabel eyebrow="06" title="왜 이 회사에 투자하려고 하시나요?" />
+        <div className="rounded-2xl bg-paper-raised p-5">
+          <p className="mb-3 text-sm leading-relaxed text-ink-soft">
             AI가 투자 여부를 판단해주지 않아요. 대신 당신이 가진 투자 논리를 함께 점검해드립니다.
           </p>
           <textarea
@@ -464,17 +551,20 @@ export default function CompanyView({ ticker }) {
             onChange={(e) => setReason(e.target.value)}
             placeholder={`예: 요즘 ${company.name} 관련 뉴스가 잘된다고 해서요`}
             rows={2}
-            className="w-full resize-none rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white placeholder:text-white/40 outline-none"
+            className="w-full resize-none rounded-xl bg-paper px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none focus:ring-2 focus:ring-amber"
           />
           <button
             onClick={() => setCheckOpen(true)}
             disabled={!reason.trim()}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber py-3 text-sm font-semibold text-white disabled:opacity-40"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber py-3.5 text-sm font-semibold text-white disabled:opacity-40"
           >
-            <Sparkles size={15} /> AI 투자 논리 점검하기
+            투자 논리 점검하기 <ArrowRight size={15} aria-hidden="true" />
           </button>
         </div>
       </section>
+
+      </main>
+      </div>
 
       {checkOpen && (
         <InvestmentCheck

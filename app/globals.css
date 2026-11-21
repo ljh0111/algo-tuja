@@ -2,7 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
 html, body {
-  background: #F6F7F4;
-  font-family: 'Noto Sans KR', sans-serif;
+  word-break: keep-all; /* 한글을 단어 중간에서 끊지 않음 */
+  overflow-wrap: break-word;
+  background: #F2F4F6;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  font-variant-numeric: tabular-nums; /* figures line up in financial tables */
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Press/hover feedback for every button (150ms, brand curve) */
+button, a { transition: background-color 150ms cubic-bezier(0.2,0,0,1), color 150ms cubic-bezier(0.2,0,0,1), border-color 150ms cubic-bezier(0.2,0,0,1), transform 150ms cubic-bezier(0.2,0,0,1), box-shadow 150ms cubic-bezier(0.2,0,0,1); }
+button:not(:disabled):active { transform: scale(0.97); }
+:focus-visible { outline: 2px solid #3182F6; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  button:not(:disabled):active { transform: none; }
+}
+
+/* 가로 스와이프 영역: 스크롤바 숨김(스크롤은 그대로) */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

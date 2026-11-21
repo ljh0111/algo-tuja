@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "fetch:corps": "node scripts/fetch-corp-list.js"
+    "fetch:corps": "node scripts/fetch-corp-list.js",
+    "test": "node --test lib/fearGreed.test.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
