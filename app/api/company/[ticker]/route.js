@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { getCompanyByTicker } from "@/lib/companies";
 import { fetchFinancialHighlights } from "@/lib/dart";
 import { generateCompanyProfile } from "@/lib/ai";
@@ -10,6 +11,12 @@ import { findCorpByTicker } from "@/lib/dartCorpList";
 // 그래서 그 부분은 /api/company/[ticker]/issues 로 분리해 화면에서 STEP 3만 따로,
 // 나중에 로딩하도록 바꿨습니다.
 export const maxDuration = 60;
+
+// 재무는 분기마다, AI 프로필은 거의 안 바뀌니 하루 동안 서버에 저장해 둡니다 (DART 24개 요청이 매번 8초쯤 걸렸음).
+// 에러로 끝난 호출은 저장되지 않아 다음 요청에서 다시 시도합니다.
+const DAY = 86400;
+const cachedFinancials = unstable_cache(fetchFinancialHighlights, ["dart-financials"], { revalidate: DAY });
+const cachedProfile = unstable_cache(generateCompanyProfile, ["ai-company-profile"], { revalidate: DAY });
 
 export async function GET(request, { params }) {
   const ticker = params.ticker;
@@ -30,7 +37,7 @@ export async function GET(request, { params }) {
     }
 
     try {
-      const profile = await generateCompanyProfile({ companyName: corp.name, ticker });
+      const profile = await cachedProfile({ companyName: corp.name, ticker });
       company = {
         ticker,
         corpCode: corp.corpCode,
@@ -54,7 +61,7 @@ export async function GET(request, { params }) {
   let financials = null;
   let financialsError = null;
   try {
-    financials = await fetchFinancialHighlights(company.corpCode);
+    financials = await cachedFinancials(company.corpCode);
   } catch (e) {
     financialsError = e.message;
   }
