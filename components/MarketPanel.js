@@ -17,7 +17,7 @@ const TILES = [
   { group: "us", key: "sp500", label: "S&P 500", hint: "밤사이 미국 대형주", fmt: "index" },
   { group: "us", key: "ust10", label: "미 국채 10년", hint: "미국 정부가 10년간 빌릴 때의 이자", fmt: "rate" },
   { group: "us", key: "t10y2y", label: "장단기 금리차", hint: "10년 금리 − 2년 금리, 음수면 경기 우려 신호", fmt: "rate" },
-  { group: "us", key: "hy", label: "하이일드 스프레드", hint: "신용 낮은 미국 기업이 국채보다 더 내는 이자", fmt: "rate" },
+  { group: "us", key: "hy", label: "하이일드 스프레드", hint: "빚 갚을 힘이 약한 미국 기업이 정부보다 더 얹어 주는 이자. 커지면 불안 신호", fmt: "rate" },
   { group: "us", key: "wti", label: "WTI 유가", hint: "미국 원유 1배럴 가격", fmt: "usd" },
 ];
 
@@ -177,7 +177,7 @@ const GAUGES = [
     key: "vxn",
     market: "us",
     title: "VXN",
-    hint: "같은 예상을 미국 기술주 기준으로",
+    hint: "앞으로 한 달 나스닥 기술주 출렁임 예상",
     pick: (d) => d.us.vxn && { pos: scale(d.us.vxn.value, 12, 45), value: d.us.vxn.value.toFixed(2) },
     // 12~45를 게이지 폭으로: 20↓ 안정, 20~25 보통, 25~35 불안, 35↑ 공포 (VIX보다 평소 수준이 높음)
     bands: [zone(0, 24.2, "잔잔", ...CALM), zone(24.2, 39.4, "보통", ...GRAY), zone(39.4, 69.7, "출렁", ...ORANGE), zone(69.7, 100, "크게 출렁", ...RED)],
@@ -362,6 +362,9 @@ export default function MarketPanel() {
   const pick = (key) => {
     setTab(key);
     setAllTiles(false); // 펼침 상태는 탭마다 새로
+    try {
+      localStorage.setItem("market-tab", key); // 다음 방문 때 같은 탭으로
+    } catch {}
   };
 
   // #market-kr / #market-us 로 들어오거나 위쪽 게이지·요약 링크를 누르면 그 탭을 열고 이동
@@ -372,6 +375,13 @@ export default function MarketPanel() {
       pick(m[1]);
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
+    // 주소에 탭이 없으면 지난번에 본 탭을 엽니다 (스크롤은 하지 않음)
+    if (!location.hash.startsWith("#market-")) {
+      try {
+        const saved = localStorage.getItem("market-tab");
+        if (saved === "kr" || saved === "us") setTab(saved);
+      } catch {}
+    }
     sync();
     window.addEventListener("market-tab", sync);
     window.addEventListener("hashchange", sync);
