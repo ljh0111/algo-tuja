@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { correlation } from "@/lib/fearGreed.mjs";
 
@@ -41,8 +41,8 @@ export function Gauge({ score, bands = BANDS, mini = false, ariaLabel }) {
           <g key={b.from}>
             <path d={sector(b.from + 0.6, b.to - 0.6)} fill={on ? b.color : "#EEF0F3"} className="transition-colors duration-500" />
             {!mini && (
-              <text x={lx} y={ly - (b.label.length - 1) * 5.5} textAnchor="middle" dominantBaseline="middle" fontSize="10.5" fontWeight="700" fill={on ? (b.onDark === false || b.from === 45 ? "#191F28" : "#FFFFFF") : "#8B95A1"}>
-                {b.label.map((l, i) => <tspan key={l} x={lx} dy={i ? 12 : 0}>{l}</tspan>)}
+              <text x={lx} y={ly - (b.label.length - 1) * 7} textAnchor="middle" dominantBaseline="middle" fontSize="12.5" fontWeight="700" fill={on ? (b.onDark === false || b.from === 45 ? "#191F28" : "#FFFFFF") : "#5B6573"}>
+                {b.label.map((l, i) => <tspan key={l} x={lx} dy={i ? 14 : 0}>{l}</tspan>)}
               </text>
             )}
           </g>
@@ -50,7 +50,7 @@ export function Gauge({ score, bands = BANDS, mini = false, ariaLabel }) {
       })}
       {!mini && [0, 25, 50, 75, 100].map((t) => {
         const [x, y] = polar(R_IN - 13, t);
-        return <text key={t} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="#8B95A1">{t}</text>;
+        return <text key={t} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="12" fill="#5B6573">{t}</text>;
       })}
       {score !== null && (
         <>
@@ -143,7 +143,7 @@ function TrendChart({ history, indexLabel }) {
       {ticks.map((t) => (
         <g key={t}>
           <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#EEF0F3" />
-          <text x={L - 5} y={y(t)} textAnchor="end" dominantBaseline="middle" fontSize="9" fill="#8B95A1">{t}</text>
+          <text x={L - 5} y={y(t)} textAnchor="end" dominantBaseline="middle" fontSize="10.5" fill="#5B6573">{t}</text>
         </g>
       ))}
       {hasIdx && (
@@ -167,7 +167,7 @@ function TrendChart({ history, indexLabel }) {
           {hasIdx && <tspan fill="#9CC3FF">{` · ${fmtIdx(h.value)}`}</tspan>}
         </text>
       </g>
-      <text x={L} y={H - 5} fontSize="9.5" fill="#8B95A1">{md(history[0].date)}</text>
+      <text x={L} y={H - 5} fontSize="10.5" fill="#5B6573">{md(history[0].date)}</text>
       <text x={W - R} y={H - 5} textAnchor="end" fontSize="9.5" fill="#8B95A1">{md(history[last].date)}</text>
     </svg>
   );
@@ -175,30 +175,22 @@ function TrendChart({ history, indexLabel }) {
 
 const shortDate = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
 
-/** 게이지 + 점수 + 비교 시점 + 추이 + 구성 지표. title/explain만 바꿔 시장·종목 모두에 씁니다. */
-export function FearGreedCard({ fg, title, explain, indexLabel }) {
+/** (compact: 게이지·점수만 먼저, 비교·추이는 접기) 게이지 + 점수 + 비교 시점 + 추이 + 구성 지표. title/explain만 바꿔 시장·종목 모두에 씁니다. */
+export function FearGreedCard({ fg, title, explain, indexLabel, compact = false }) {
   const [open, setOpen] = useState(false);
+  const [more, setMore] = useState(false);
+  const uid = useId();
   const band = bandOf(fg.score);
-  return (
-    <div className="rounded-xl bg-paper px-4 pb-4 pt-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-ink">{title}</div>
-        <div className="text-xs text-ink-faint">{shortDate(fg.date)} 종가</div>
-      </div>
-
-      <div className="mt-2 flex flex-col items-center">
-        <Gauge score={fg.score} />
-        <div className="-mt-1 text-[40px] font-bold leading-none tracking-tight text-ink">{fg.score}</div>
-        <div className="mt-1 text-sm font-bold" style={{ color: band.text }}>{fg.label}</div>
-      </div>
-
+  // 비교·추이·계산 설명 묶음. compact에서는 버튼 뒤로 접습니다.
+  const detail = (
+    <>
       {fg.compare?.length > 0 && (
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           {fg.compare.map((c) => (
             <div key={c.label} className="rounded-lg bg-paper-raised px-2 py-2">
               <dt className="text-xs text-ink-faint">{c.label}</dt>
               <dd className="mt-0.5 text-sm font-bold text-ink">
-                {c.score}<span className="block whitespace-nowrap text-xs font-medium" style={{ color: bandOf(c.score).text }}>{bandOf(c.score).label.join(" ")}</span>
+                {c.score}<span className="block text-xs font-medium" style={{ color: bandOf(c.score).text }}>{bandOf(c.score).label.join(" ")}</span>
               </dd>
             </div>
           ))}
@@ -248,6 +240,37 @@ export function FearGreedCard({ fg, title, explain, indexLabel }) {
           ))}
           <p className="pt-1 text-xs leading-relaxed text-ink-faint">{explain}</p>
         </div>
+      )}
+    </>
+  );
+  return (
+    <div className={`rounded-xl bg-paper px-4 ${compact ? "pb-3" : "pb-4"} pt-3`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <div className="text-sm font-semibold text-ink">{title}</div>
+        <div className="text-xs text-ink-faint">{shortDate(fg.date)} 종가</div>
+      </div>
+
+      <div className="mt-2 flex flex-col items-center">
+        <Gauge score={fg.score} />
+        <div className="-mt-1 text-[40px] font-bold leading-none tracking-tight text-ink">{fg.score}</div>
+        <div className="mt-1 text-sm font-bold" style={{ color: band.text }}>{fg.label}</div>
+      </div>
+
+      {compact ? (
+        <>
+          <p className="mt-2 text-xs leading-relaxed text-ink-faint">시장 심리를 보여주는 참고 지표예요. 매수·매도 시점을 알려주지 않아요.</p>
+          <button
+            onClick={() => setMore((v) => !v)}
+            aria-expanded={more}
+            aria-controls={`fg-more-${uid}`}
+            className="mt-1 flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-sm font-medium text-ink-soft hover:bg-[#E9ECEF]"
+          >
+            비교·추이 보기 <ChevronDown size={14} className={`transition-transform ${more ? "rotate-180" : ""}`} />
+          </button>
+          <div id={`fg-more-${uid}`} className={more ? "animate-pop" : "hidden"}>{detail}</div>
+        </>
+      ) : (
+        detail
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ChevronRight, Loader2, Heart, Clock, Newspaper, Building2, BarChart3, LineChart } from "lucide-react";
+import { Search, ChevronRight, Loader2, Heart, Clock, Newspaper, Building2, BarChart3, LineChart, Workflow } from "lucide-react";
 import { COMPANY_LIST } from "@/lib/companies";
 import MarketPanel, { MarketStrip } from "@/components/MarketPanel";
 import AdSlot from "@/components/AdSlot";
@@ -68,12 +68,12 @@ export default function Home() {
   const go = (ticker) => router.push(`/company/${ticker}`);
 
   return (
-    <main className="mx-auto max-w-lg px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:max-w-6xl lg:px-8 lg:pt-10">
+    <main className="mx-auto max-w-lg px-4 pb-24 lg:pb-12 pt-4 sm:px-6 sm:pt-6 lg:max-w-6xl lg:px-8 lg:pt-10">
       {/* 서비스가 무엇인지(제목·검색)를 먼저, 시장 지표는 그 옆·아래에. 두 칸은 서로 높이에 영향을 주지 않습니다. */}
       <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:items-start lg:gap-10">
         <div>
           <div className="px-2 sm:px-0">
-            <h1 className="animate-fade-up font-serif text-xl font-bold leading-snug tracking-tight text-ink sm:text-3xl sm:leading-[1.3]">
+            <h1 className="animate-fade-up font-serif text-2xl font-bold leading-snug tracking-tight text-ink sm:text-3xl sm:leading-[1.3]">
               내가 투자하려는 회사,<br />정말 알고 투자하고 있나요?
             </h1>
             {/* 모바일은 한 줄 설명, 넓은 화면에선 점검 문장까지 */}
@@ -83,7 +83,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-4 rounded-3xl bg-[#EAF2FE] sm:mt-5 px-4 pb-4 pt-4 lg:px-6 lg:pt-5">
+          <div className="mt-4 rounded-3xl bg-amber-soft sm:mt-5 px-4 pb-4 pt-4 lg:px-6 lg:pt-5">
       <div ref={boxRef} className="relative z-20 w-full animate-fade-up">
         <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" />
         <input
@@ -128,7 +128,7 @@ export default function Home() {
           list.length || empty ? (
             // 한 줄로: 넘치면 가로로 밀어서 봅니다
             <div key={label} className="no-scrollbar flex items-center gap-2 overflow-x-auto px-1 max-sm:[mask-image:linear-gradient(to_right,black_85%,transparent)]">
-              <span className="flex w-16 shrink-0 items-center gap-1 text-xs text-ink-faint">
+              <span className="flex w-20 shrink-0 items-center gap-1 text-xs text-ink-faint">
                 {Icon && <Icon size={12} aria-hidden="true" />}{label}
               </span>
               {list.length ? (
@@ -159,7 +159,7 @@ export default function Home() {
       </div>
 
       <section className="mt-6 w-full rounded-2xl bg-paper-raised p-5 lg:mt-10 lg:p-8" aria-labelledby="how-title">
-        <h2 id="how-title" className="text-center text-[15px] font-bold text-ink">뉴스 하나를 이렇게 풀어 드려요</h2>
+        <h2 id="how-title" className="flex items-center gap-2 text-left text-lg font-bold text-ink"><Workflow size={20} className="shrink-0 text-ink-soft" aria-hidden="true" />뉴스 하나를 이렇게 풀어 드려요</h2>
         <ol className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             [Newspaper, "최신 뉴스 발생"],
@@ -168,7 +168,7 @@ export default function Home() {
             [LineChart, "실적에 미치는 영향"],
           ].map(([Icon, label], i) => (
             <li key={label} className="flex flex-col rounded-3xl bg-paper px-3.5 pb-4 pt-3.5">
-              <div className="flex items-start gap-1.5 text-[13px] font-semibold leading-snug text-ink">
+              <div className="flex items-start gap-1.5 text-sm font-semibold leading-snug text-ink">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-paper-raised text-xs font-bold text-amber">
                   {String(i + 1).padStart(2, "0")}
                 </span>

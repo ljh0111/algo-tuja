@@ -10,7 +10,7 @@ module.exports = {
         paper: "#F2F4F6",
         "paper-raised": "#FFFFFF",
         ink: "#191F28",
-        "ink-soft": "#4E5968",
+        "ink-soft": "#333D4B", // 설명·본문: 보조(ink-faint)보다 확실히 진하게
         "ink-faint": "#5B6573", // 흰색·#F2F4F6 위 작은 글자 4.5:1 이상
         line: "#E5E8EB",
         // shortcut: "amber" token now holds the trust-blue accent; rename across components if the palette changes again
@@ -24,6 +24,11 @@ module.exports = {
         up: "#C81E5A", // 상승: 공포 게이지의 주홍빛 빨강과 구분되는 자홍빛, 작은 글자 대비 5:1
         down: "#1B64DA", // 하락
         "red-soft": "#FBE6E3",
+      },
+      // 가독성: 보조 글자 12→13px, 본문 14→15px (Pretendard 기준)
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.25rem" }],
+        sm: ["0.9375rem", { lineHeight: "1.375rem" }],
       },
       // Motion identity (Corporate): one curve, three durations (150/250/400ms)
       transitionTimingFunction: { brand: "cubic-bezier(0.2, 0, 0, 1)" },

@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, LineChar
 import {
   ChevronDown, ChevronRight, ExternalLink, X, ArrowRight,
   Info, Check, AlertCircle, Loader2, ArrowLeft, TrendingUp, Heart,
+  Building2, LineChart as LineChartIcon, BarChart3, Newspaper, ListChecks, ClipboardCheck, LayoutDashboard,
 } from "lucide-react";
 import { addRecent, isFavorite, toggleFavorite } from "@/lib/watchlist";
 
@@ -19,7 +20,7 @@ const TABS = [
 ];
 import { SourceBadge, FlowChain, SectionLabel } from "@/components/ui";
 import TermLookup from "@/components/TermLookup";
-import StockSentiment from "@/components/StockSentiment";
+import StockSentiment, { useStockSentiment } from "@/components/StockSentiment";
 import PriceChart from "@/components/PriceChart";
 import AdSlot from "@/components/AdSlot";
 
@@ -182,9 +183,9 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
               </div>
               {result.confirmed?.length > 0 && (
                 <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-green"><Check size={13} /> 잘 확인한 부분</div>
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-ink-soft"><Check size={13} /> 잘 확인한 부분</div>
                   <ul className="space-y-1.5">
-                    {result.confirmed.map((c, i) => <li key={i} className="rounded-xl bg-green-soft px-3.5 py-2 text-sm text-ink">{c}</li>)}
+                    {result.confirmed.map((c, i) => <li key={i} className="rounded-xl bg-paper px-3.5 py-2 text-sm text-ink">{c}</li>)}
                   </ul>
                 </div>
               )}
@@ -217,6 +218,66 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
   );
 }
 
+/* ----------------------------- 한눈 요약 ----------------------------- */
+const ymd = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
+
+// 증감은 색뿐 아니라 화살표·부호 글자로도 표시
+function delta(pct, digits = 1) {
+  if (pct === null || pct === undefined || Number.isNaN(pct)) return null;
+  const n = Number(pct.toFixed(digits));
+  if (n === 0) return { dir: 0, text: `– ${(0).toFixed(digits)}%` };
+  return n > 0 ? { dir: 1, text: `▲ +${n.toFixed(digits)}%` } : { dir: -1, text: `▼ −${Math.abs(n).toFixed(digits)}%` };
+}
+const dirClass = (d) => (d > 0 ? "text-up" : d < 0 ? "text-down" : "text-ink-soft");
+
+// 전년 대비 %: 전년 0·누락이면 null(비교 불가)
+function yoyPct(acc) {
+  if (!acc || acc.thisYear == null || !acc.lastYear) return null;
+  return ((acc.thisYear - acc.lastYear) / Math.abs(acc.lastYear)) * 100;
+}
+
+function GlanceCard({ label, href, state, value, detail, meta, textual = false, direction = 0 }) {
+  const tone = direction > 0 ? "text-up" : direction < 0 ? "text-down" : "text-ink";
+  return (
+    <a
+      href={href}
+      aria-busy={state === "loading"}
+      className="flex min-h-11 min-w-0 flex-col rounded-xl border border-line bg-paper-raised p-3 hover:border-ink-faint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+    >
+      <span className="flex items-center justify-between gap-1 text-xs font-medium text-ink-soft">
+        {label}<ChevronRight size={14} className="shrink-0" aria-hidden="true" />
+      </span>
+      <span className="mt-2 flex min-h-16 flex-col gap-1">
+        {state === "loading" ? (
+          <span className="text-sm text-ink-faint">불러오는 중…</span>
+        ) : state === "missing" ? (
+          <span className="text-sm text-ink-faint">자료 없음</span>
+        ) : (
+          <>
+            <span className={textual ? "break-words text-base font-semibold leading-snug text-ink" : `break-words text-2xl font-bold leading-tight tracking-tight tabular-nums ${tone}`}>
+              {value}
+            </span>
+            <span className="text-sm font-medium leading-snug text-ink-soft">{detail}</span>
+          </>
+        )}
+      </span>
+      {meta && <span className="mt-2 text-xs leading-snug text-ink-faint">{meta}</span>}
+    </a>
+  );
+}
+
+// 모바일(aside)·데스크톱(main)에서 각각 한 번씩 그리므로 제목 id를 따로 받음
+function GlanceSection({ cards, titleId, className, gridClass }) {
+  return (
+    <section aria-labelledby={titleId} className={className}>
+      <SectionLabel id={titleId} title="한눈 요약" icon={LayoutDashboard} />
+      <div className={gridClass}>
+        {cards.map((c) => <GlanceCard key={c.label} {...c} />)}
+      </div>
+    </section>
+  );
+}
+
 /* ----------------------------- 기업 상세 메인 ----------------------------- */
 export default function CompanyView({ ticker }) {
   const router = useRouter();
@@ -235,6 +296,7 @@ export default function CompanyView({ ticker }) {
   const [activeMetric, setActiveMetric] = useState(null); // "매출액" | "영업이익" | "당기순이익" | null
   const [fav, setFav] = useState(false);
   const [activeTab, setActiveTab] = useState(TABS[0][0]);
+  const sentiment = useStockSentiment(ticker); // 조건부 return 전에 호출
 
   // STEP 1·2(빠른 부분)를 먼저 불러옵니다.
   useEffect(() => {
@@ -308,6 +370,49 @@ export default function CompanyView({ ticker }) {
   const issues = issuesData?.issues || [];
   const issuesError = issuesData?.issuesError || null;
 
+  // 한눈 요약 카드 4개
+  const sLoading = sentiment === null;
+  const sOk = sentiment && !sentiment.error;
+  const price = sOk ? sentiment.price : null;
+  const fg = sOk ? sentiment.fearGreed : null;
+  const pd = price ? delta(price.changePct, 2) : null;
+  const rev = delta(yoyPct(financials?.accounts?.["매출액"]));
+  const op = delta(yoyPct(financials?.accounts?.["영업이익"]));
+  const cp0 = company.checkpoints?.[0]?.title;
+  const glanceCards = [
+    {
+      label: "주가", href: "#chart",
+      state: sLoading ? "loading" : price ? "ok" : "missing",
+      value: price ? `${Math.round(price.close).toLocaleString("ko-KR")}원` : "",
+      detail: pd && (
+        <span className={`font-semibold ${dirClass(pd.dir)}`}>
+          {pd.dir > 0 ? "상승" : pd.dir < 0 ? "하락" : "보합"} {pd.text}
+        </span>
+      ),
+      meta: price ? `${ymd(price.date)} 종가 · 전일 대비` : "",
+    },
+    {
+      label: "실적", href: "#financials",
+      state: financials && (rev || op) ? "ok" : "missing",
+      value: rev ? `매출 ${rev.text}` : "매출 비교 불가",
+      direction: rev ? rev.dir : 0,
+      detail: op ? <>영업이익 <span className={`font-semibold ${dirClass(op.dir)}`}>{op.text}</span></> : "영업이익 비교 불가",
+      meta: financials ? `${financials.fiscalYear}년 · 전년 대비` : "",
+    },
+    {
+      label: "투자 심리", href: "#sentiment",
+      state: sLoading ? "loading" : fg ? "ok" : "missing",
+      value: fg ? `${fg.score}점` : "",
+      detail: fg?.label,
+      meta: fg?.date ? `${ymd(fg.date)} 기준` : "",
+    },
+    {
+      label: "볼 것", href: "#checkpoints",
+      state: cp0 ? "ok" : "missing",
+      value: cp0, textual: true, detail: "첫 체크포인트",
+    },
+  ];
+
   const openTrend = (metricLabel) => {
     setActiveMetric(metricLabel);
     if (trend === null && !trendLoading) {
@@ -325,7 +430,7 @@ export default function CompanyView({ ticker }) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-5 pb-28 pt-6 sm:px-6 lg:max-w-6xl lg:px-8" ref={contentRef}>
+    <div className="mx-auto max-w-2xl px-5 pb-28 lg:pb-12 pt-6 sm:px-6 lg:max-w-6xl lg:px-8" ref={contentRef}>
       <TermLookup containerRef={contentRef} context={`${company.name} 기업 설명 페이지`} />
       <div className="mb-5">
         <button onClick={() => router.push("/")} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft">
@@ -361,20 +466,23 @@ export default function CompanyView({ ticker }) {
         )}
       </div>
 
-      <div className="mb-6">
+      <GlanceSection cards={glanceCards} titleId="glance-title-m" className="mb-6 lg:hidden" gridClass="grid grid-cols-2 gap-2" />
+
+      <div id="sentiment" className="mb-6 scroll-mt-32">
         <StockSentiment ticker={company.ticker} name={company.name} />
       </div>
 
       </aside>
 
       <main className="min-w-0">
+      <GlanceSection cards={glanceCards} titleId="glance-title-d" className="mb-6 hidden lg:block" gridClass="grid grid-cols-4 gap-2" />
       <nav className="sticky top-0 z-20 lg:top-[45px] -mx-5 mb-6 flex gap-1 overflow-x-auto bg-paper/95 px-5 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0" aria-label="섹션 이동">
         {TABS.map(([id, label]) => (
           <a
             key={id}
             href={`#${id}`}
             aria-current={activeTab === id ? "true" : undefined}
-            className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold ${activeTab === id ? "bg-paper-raised text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-3.5 py-2 text-sm font-semibold ${activeTab === id ? "bg-paper-raised text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
           >
             {label}
           </a>
@@ -382,10 +490,10 @@ export default function CompanyView({ ticker }) {
       </nav>
 
       {/* Section 2 — 10초 이해 */}
-      <section id="overview" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "0ms" }}>
-        <SectionLabel eyebrow="01" title="10초 만에 기업 이해하기" />
+      <section id="overview" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "0ms" }}>
+        <SectionLabel eyebrow="01" title="10초 만에 기업 이해하기" icon={Building2} />
         <div className="rounded-2xl bg-paper-raised p-5">
-          <p className="text-sm leading-relaxed text-ink">{company.oneLiner}</p>
+          <p className="text-base font-medium leading-relaxed text-ink">{company.oneLiner}</p>
           <dl className="mt-4 space-y-3 border-t border-line pt-4 text-sm">
             {[["대표 제품", company.products], ["주요 고객", company.customers], ["주요 경쟁사", company.competitors]].map(([label, val]) => (
               <div key={label} className="flex gap-4">
@@ -398,13 +506,13 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 3 — 실시간 재무 실적 (DART) */}
-      <section id="chart" className="mb-10 scroll-mt-32">
-        <SectionLabel eyebrow="02" title="주가 흐름은 어떤가요?" />
+      <section id="chart" className="mb-8 lg:mb-10 scroll-mt-32">
+        <SectionLabel eyebrow="02" title="주가 흐름은 어떤가요?" icon={LineChartIcon} />
         <PriceChart ticker={company.ticker} />
       </section>
 
-      <section id="financials" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "80ms" }}>
-        <SectionLabel eyebrow="03" title="최근 실적은 어떤가요?" />
+      <section id="financials" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "80ms" }}>
+        <SectionLabel eyebrow="03" title="최근 실적은 어떤가요?" icon={BarChart3} />
         <div className="rounded-2xl bg-paper-raised p-5">
           {financials ? (
             <>
@@ -427,7 +535,7 @@ export default function CompanyView({ ticker }) {
                       </div>
                       <div className="mt-1 font-mono text-lg font-bold tracking-tight text-ink">{formatWon(acc.thisYear)}</div>
                       {acc.lastYear !== null && <YoY now={acc.thisYear} prev={acc.lastYear} />}
-                      <div className="mt-1 text-[10px] font-medium text-amber">추이 그래프 보기</div>
+                      <div className="mt-1 text-xs font-medium text-amber">추이 그래프 보기</div>
                     </button>
                   );
                 })}
@@ -473,8 +581,8 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 4+5 — 실시간 뉴스 기반 이슈 */}
-      <section id="issues" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "160ms" }}>
-        <SectionLabel eyebrow="04" title="요즘 이 회사에 무슨 일이 있나요?" />
+      <section id="issues" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "160ms" }}>
+        <SectionLabel eyebrow="04" title="요즘 이 회사에 무슨 일이 있나요?" icon={Newspaper} />
         {issuesLoading && (
           <div className="flex items-center gap-2 rounded-2xl bg-paper-raised px-4 py-4 text-xs text-ink-faint">
             <Loader2 size={14} className="animate-spin" /> 최신 뉴스를 분석해서 핵심 이슈를 정리하는 중이에요...
@@ -518,10 +626,10 @@ export default function CompanyView({ ticker }) {
       </section>
 
       {/* Section 6 — 체크포인트 */}
-      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_COMPANY} className="mb-10" />
+      <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_COMPANY} className="mb-8 lg:mb-10" />
 
-      <section id="checkpoints" className="mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "240ms" }}>
-        <SectionLabel eyebrow="05" title="앞으로 무엇을 봐야 할까요?" />
+      <section id="checkpoints" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "240ms" }}>
+        <SectionLabel eyebrow="05" title="앞으로 무엇을 봐야 할까요?" icon={ListChecks} />
         <div className="space-y-2.5">
           {company.checkpoints.map((cp, i) => {
             const open = openCheckpoint === i;
@@ -541,7 +649,7 @@ export default function CompanyView({ ticker }) {
 
       {/* Section 7 — 투자 논리 점검 */}
       <section id="thesis" className="scroll-mt-32 animate-fade-up" style={{ animationDelay: "320ms" }}>
-        <SectionLabel eyebrow="06" title="왜 이 회사에 투자하려고 하시나요?" />
+        <SectionLabel eyebrow="06" title="왜 이 회사에 투자하려고 하시나요?" icon={ClipboardCheck} />
         <div className="rounded-2xl bg-paper-raised p-5">
           <p className="mb-3 text-sm leading-relaxed text-ink-soft">
             AI가 투자 여부를 판단해주지 않아요. 대신 당신이 가진 투자 논리를 함께 점검해드립니다.

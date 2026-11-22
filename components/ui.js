@@ -52,12 +52,15 @@ export function FlowChain({ steps }) {
   );
 }
 
-export function SectionLabel({ eyebrow, title }) {
+export function SectionLabel({ eyebrow, title, icon: Icon, id }) {
   return (
     <div className="mb-3 px-1">
-      <h2 className="flex items-baseline gap-2 font-serif text-lg font-bold tracking-tight text-ink">
-        <span className="text-sm font-semibold text-ink-faint">{eyebrow}</span>
-        {title}
+      <h2 id={id} className="flex items-start gap-2 font-serif text-lg font-bold leading-snug tracking-tight text-ink lg:text-xl">
+        {Icon && <Icon size={20} className="mt-0.5 shrink-0 text-ink-soft" aria-hidden="true" />}
+        <span className="min-w-0">
+          {eyebrow && <span className="mr-2 text-xs font-medium text-ink-faint">{eyebrow}</span>}
+          {title}
+        </span>
       </h2>
     </div>
   );

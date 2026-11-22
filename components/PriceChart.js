@@ -80,7 +80,7 @@ export default function PriceChart({ ticker }) {
               key={l.key}
               onClick={() => setShown((s) => ({ ...s, [l.key]: !s[l.key] }))}
               aria-pressed={shown[l.key]}
-              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${shown[l.key] ? "border-transparent bg-paper text-ink" : "border-line text-ink-faint"}`}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${shown[l.key] ? "border-transparent bg-paper text-ink" : "border-line text-ink-faint"}`}
             >
               <span className="h-0.5 w-3 rounded" style={{ background: shown[l.key] ? l.color : "#D1D6DB" }} />
               {l.label}
@@ -124,7 +124,7 @@ export default function PriceChart({ ticker }) {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
+          <p className="mt-3 text-xs leading-relaxed text-ink-faint">
             이동평균선은 지난 주가의 평균이라 앞으로의 방향을 보장하지 않아요. 흔히 쓰는 해석을 정리한 참고 정보이며, 매수·매도 권유가 아니에요.
           </p>
         </div>

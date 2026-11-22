@@ -66,7 +66,7 @@ export default function StockSentiment({ ticker, name }) {
       </div>
 
       <div className="mt-4">
-        <div className="flex justify-between text-[11px] text-ink-faint">
+        <div className="flex justify-between text-xs text-ink-faint">
           <span>52주 최저</span>
           <span>52주 최고</span>
         </div>
@@ -91,7 +91,7 @@ export default function StockSentiment({ ticker, name }) {
       ) : (
         <p className="mt-4 text-xs text-ink-faint">상장 기간이 짧아 1년 비교가 필요한 공포탐욕지수는 아직 계산할 수 없어요.</p>
       )}
-      <p className="mt-3 text-[11px] text-ink-faint">{data.source}</p>
+      <p className="mt-3 text-xs text-ink-faint">{data.source}</p>
     </div>
   );
 }

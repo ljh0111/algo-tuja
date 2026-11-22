@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, ChevronDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, ChevronDown, ArrowUp, ArrowDown, Gauge as GaugeIcon, MessageSquareText, BarChart3 } from "lucide-react";
 import { summarizeMarket } from "@/lib/marketSummary.mjs";
 import TermLookup from "@/components/TermLookup";
 import { FearGreedCard, Gauge, BANDS } from "@/components/FearGreed";
@@ -59,7 +59,7 @@ function format(t, d) {
 function Tile({ t, d }) {
   if (!d) {
     return (
-      <div className="rounded-xl bg-paper px-3.5 py-3">
+      <div className="rounded-xl bg-paper p-3">
         <div className="text-xs text-ink-faint">{t.label}</div>
         <div className="mt-1 text-sm text-ink-faint">불러오지 못함</div>
       </div>
@@ -67,11 +67,11 @@ function Tile({ t, d }) {
   }
   const { value, change } = format(t, d);
   return (
-    <div className="rounded-xl bg-paper px-3.5 py-3">
+    <div className="rounded-xl bg-paper p-3">
       <div className="text-xs text-ink-soft">{t.label}</div>
       <div className="mt-0.5 text-base font-bold tracking-tight text-ink">{value}</div>
       <div className="text-xs font-medium text-ink-faint">{change}</div>
-      <div className="mt-1.5 text-xs leading-snug text-ink-faint">{t.hint}</div>
+      <div className="mt-1 text-xs leading-snug text-ink-faint">{t.hint}</div>
     </div>
   );
 }
@@ -202,7 +202,7 @@ function GaugeTile({ g, data, link }) {
     <li>
     <Box
       {...(link && { href: `#market-${g.market}`, onClick: (e) => openMarket(e, g.market) })}
-      className={`flex h-full flex-col items-center rounded-xl bg-paper px-2 pb-3 pt-2.5 text-center ${link ? "transition-colors hover:bg-[#E9ECEF]" : ""}`}
+      className={`flex h-full flex-col items-center justify-center rounded-xl bg-paper px-2 pb-3 pt-2.5 text-center ${link ? "transition-colors hover:bg-[#E9ECEF]" : ""}`}
     >
       <div className="text-xs font-semibold text-ink">{g.title}</div>
       <div className="mt-1.5 w-full max-w-[120px]">
@@ -253,15 +253,14 @@ function MarketVerdict({ data }) {
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="mood-detail" className="flex min-h-11 w-full items-center gap-3 px-4 pt-3.5 text-left">
         <span className="shrink-0 rounded-md px-2 py-1 text-xs font-bold" style={{ color: t.text, background: t.bg }}>{sum.label}</span>
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-medium text-ink-soft">시장 온도 한 줄 요약</span>
+          <span className="flex items-center gap-1 text-xs font-medium text-ink-soft"><MessageSquareText size={14} className="shrink-0 text-ink-soft" aria-hidden="true" />시장 온도 한 줄 요약</span>
           <span className="block text-sm font-bold text-ink">{sum.title}</span>
         </span>
         <ChevronDown size={18} className={`shrink-0 text-ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      {/* 닫혀 있어도 보이게: 신호가 아니라는 안내와 핵심 기능으로 가는 길 */}
-      <div className="flex items-center justify-between gap-3 px-4 pb-2.5 pt-1">
-        <span className="text-xs text-ink-soft">사거나 팔 때를 알려주지 않아요</span>
-        <button onClick={toSearch} className="min-h-11 shrink-0 rounded-full bg-amber px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1557C0]">
+      {/* 닫혀 있어도 보이게: 핵심 기능(내 회사 확인)으로 가는 길 */}
+      <div className="px-4 pb-3.5 pt-2.5">
+        <button onClick={toSearch} className="min-h-11 w-full rounded-full bg-amber px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1557C0]">
           내 회사 확인하기
         </button>
       </div>
@@ -273,7 +272,7 @@ function MarketVerdict({ data }) {
               const rt = r.risk >= 2 ? TONE.risk : r.risk === 1 ? TONE.caution : TONE.neutral;
               return (
                 <li key={r.label} className="rounded-lg bg-paper-raised px-3 py-2.5">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
                     <span className="font-semibold text-ink">
                       {r.label}
                       {(() => {
@@ -308,7 +307,7 @@ export function MarketStrip() {
   const { data, error, retry } = useMarket();
   return (
     <section className="w-full rounded-2xl bg-paper-raised p-4" aria-labelledby="strip-title">
-      <h2 id="strip-title" className="mb-3 px-1 text-[15px] font-bold text-ink">오늘의 시장 온도</h2>
+      <h2 id="strip-title" className="mb-3 flex items-center gap-2 px-1 text-[15px] font-bold text-ink"><GaugeIcon size={18} className="shrink-0 text-ink-soft" aria-hidden="true" />오늘의 시장 온도</h2>
       {error ? (
         <LoadError onRetry={retry} />
       ) : (
@@ -340,6 +339,7 @@ function FearGreedSlot({ fg }) {
   return (
     <FearGreedCard
       fg={fg}
+      compact
       title="코스피 공포탐욕지수"
       indexLabel="코스피"
       explain="CNN Fear & Greed 방식처럼 각 지표의 오늘 값이 최근 1년 중 어디쯤인지(백분위)를 0~100점으로 바꿔 평균했어요. 시장 심리를 보여주는 참고 지표이며, 매수·매도 시점을 알려주지 않아요."
@@ -373,6 +373,7 @@ export default function MarketPanel() {
       const m = location.hash.match(/^#market-(kr|us)$/);
       if (!m) return;
       pick(m[1]);
+      setAllTiles(true); // 지표를 보러 온 진입은 전체 지표도 펼침
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
     // 주소에 탭이 없으면 지난번에 본 탭을 엽니다 (스크롤은 하지 않음)
@@ -401,10 +402,10 @@ export default function MarketPanel() {
   };
 
   return (
-    <section ref={ref} id="market" className="w-full scroll-mt-20 rounded-2xl bg-paper-raised p-5 lg:p-8" aria-labelledby="market-title">
+    <section ref={ref} id="market" className="w-full scroll-mt-20 rounded-2xl bg-paper-raised p-4 lg:p-5" aria-labelledby="market-title">
       <TermLookup containerRef={ref} context="메인 화면 시장 지표 설명" />
-      <h2 id="market-title" className="text-lg font-bold tracking-tight text-ink">시장 지표 자세히</h2>
-      <p className="mb-4 mt-1 text-xs text-ink-faint">모르는 용어는 손가락이나 마우스로 선택하면 뜻을 볼 수 있어요.</p>
+      <h2 id="market-title" className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink"><BarChart3 size={20} className="shrink-0 text-ink-soft" aria-hidden="true" />시장 지표 자세히</h2>
+      <p className="mb-2 mt-1 text-xs text-ink-faint">모르는 용어는 손가락이나 마우스로 선택하면 뜻을 볼 수 있어요.</p>
       {error && <LoadError onRetry={retry} />}
       {!data && !error && (
         <div className="flex items-center gap-2 py-6 text-sm text-ink-faint">
@@ -413,7 +414,7 @@ export default function MarketPanel() {
       )}
       {data && (
         <>
-          <div role="tablist" aria-label="시장 선택" onKeyDown={onTabKey} className="mb-4 inline-flex rounded-xl bg-paper p-1">
+          <div role="tablist" aria-label="시장 선택" onKeyDown={onTabKey} className="mb-3 inline-flex rounded-xl bg-paper p-1">
             {MARKET_TABS.map((t) => (
               <button
                 key={t.key}
@@ -431,12 +432,13 @@ export default function MarketPanel() {
             ))}
           </div>
           {/* PC: 공포탐욕 카드와 지표 타일을 나란히 · 모바일: 카드 아래 타일은 눌러서 펼침 */}
-          <div id="market-tabpanel" role="tabpanel" aria-labelledby={`market-tab-${tab}`} className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+          <div id="market-tabpanel" role="tabpanel" aria-labelledby={`market-tab-${tab}`} className="lg:grid lg:grid-cols-2 lg:gap-4">
             {tab === "kr" ? (
               <FearGreedSlot fg={data.fearGreed} />
             ) : data.usFearGreed ? (
               <FearGreedCard
                 fg={data.usFearGreed}
+                compact
                 title="미국 공포탐욕지수"
                 indexLabel="S&P 500"
                 explain="CNN Fear & Greed와 같은 방식으로, 7개 지표 중 공식 무료 데이터(미국 연준 FRED)로 구할 수 있는 5개(모멘텀·주가 강도·VIX·정크본드 수요·안전자산 수요)를 써서 직접 계산했어요. CNN 발표 값과는 조금 다를 수 있어요. 매수·매도 시점을 알려주지 않아요."
@@ -444,12 +446,13 @@ export default function MarketPanel() {
             ) : (
               <div className="rounded-xl bg-paper px-4 py-4 text-sm text-ink-soft">미국 투자 심리 지표를 지금은 불러오지 못했어요.</div>
             )}
-            <div className="mt-4 lg:mt-0">
+            {/* PC: 게이지 칸을 왼쪽 카드 높이만큼 늘려 빈칸을 없앰. 왼쪽 비교·추이를 펼쳐도 너무 커지지 않게 상한을 둠 */}
+            <div className="mt-4 lg:mt-0 lg:flex lg:flex-col">
               {(() => {
                 const gs = GAUGES.filter((g) => g.market === tab && !g.strip);
-                // 탭마다 게이지 수가 달라(국내 1 · 미국 3) 빈 칸이 남지 않게 개수만큼 나눔
+                // 국내 1개는 한 칸, 미국 3개는 sm 이상에서 3열
                 return (
-                  <ul className="grid gap-2" style={{ gridTemplateColumns: `repeat(${gs.length}, minmax(0, 1fr))` }}>
+                  <ul className={`grid grid-cols-1 gap-2 lg:max-h-[320px] lg:flex-1 ${gs.length === 1 ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
                     {gs.map((g) => <GaugeTile key={g.key} g={g} data={data} />)}
                   </ul>
                 );
@@ -458,11 +461,11 @@ export default function MarketPanel() {
                 onClick={() => setAllTiles((v) => !v)}
                 aria-expanded={allTiles}
                 aria-controls="market-tiles"
-                className="mt-3 flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-ink-soft hover:bg-[#E9ECEF] lg:hidden"
+                className="mt-3 flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-ink-soft hover:bg-[#E9ECEF]"
               >
                 {allTiles ? "지표 접기" : `${tab === "kr" ? "국내" : "미국"} 지표 전체 보기`} <ChevronDown size={14} className={`transition-transform ${allTiles ? "rotate-180" : ""}`} />
               </button>
-              <div id="market-tiles" className={`mt-3 ${allTiles ? "" : "hidden lg:block"}`}>
+              <div id="market-tiles" className={`mt-3 ${allTiles ? "" : "hidden"}`}>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {TILES.filter((t) => t.group === tab).map((t) => <Tile key={t.key} t={t} d={data[tab][t.key]} />)}
                 </div>
