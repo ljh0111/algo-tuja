@@ -5,6 +5,7 @@ import { Loader2, ChevronDown, ArrowUp, ArrowDown, Gauge as GaugeIcon, MessageSq
 import { summarizeMarket } from "@/lib/marketSummary.mjs";
 import TermLookup from "@/components/TermLookup";
 import { FearGreedCard, Gauge, BANDS, bandOf } from "@/components/FearGreed";
+import { asOfLabel } from "@/components/ui";
 
 const TILES = [
   { group: "kr", key: "kospi", label: "코스피", hint: "국내 대형주 전체 흐름", fmt: "index" },
@@ -24,11 +25,11 @@ const TILES = [
 const num = (v, d = 2) => v.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const sign = (v) => (v > 0 ? "+" : "");
 const tone = (v) => (v > 0 ? "text-up" : v < 0 ? "text-down" : "text-ink-faint");
-const shortDate = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
 // 국내와 미국 장 마감일이 다르면 둘 다 보여줍니다 (시차 때문에 미국이 하루 늦는 날이 많음)
 function closeDates(d) {
-  const kr = d.kr.kospi?.date, us = d.us.sp500?.date;
-  return !us || us === kr ? `${shortDate(kr)} 종가` : `국내 ${shortDate(kr)} · 미국 ${shortDate(us)} 종가`;
+  const kr = asOfLabel(d.kr.kospi?.date, d.live?.kr);
+  const us = d.us.sp500 ? asOfLabel(d.us.sp500.date, d.live?.us) : null;
+  return !us || us === kr ? kr : `국내 ${kr} · 미국 ${us}`;
 }
 
 // 등락: 색(상승 자홍·하락 파랑)과 화살표를 함께
@@ -79,7 +80,7 @@ function Tile({ t, d }) {
 // 상단 요약과 아래 상세 패널이 요청 하나를 나눠 씁니다. 실패하면 retry()로 둘 다 다시 받습니다.
 let marketPromise = null;
 let marketAt = 0;
-const MARKET_TTL = 60 * 60 * 1000; // 1시간 지나면 다시 받음
+const MARKET_TTL = 60 * 1000; // 장중 값이 1분마다 바뀌므로 1분 지나면 다시 받음
 const listeners = new Set();
 function loadMarket() {
   if (marketPromise && Date.now() - marketAt > MARKET_TTL) marketPromise = null;
@@ -99,12 +100,18 @@ function useMarket() {
   useEffect(() => {
     const bump = () => setAttempt((n) => n + 1);
     listeners.add(bump);
-    return () => listeners.delete(bump);
+    // 페이지를 열어 둔 동안 1분마다 새로 받아 장중 값을 반영 (화면이 안 보일 땐 건너뜀)
+    const id = setInterval(() => !document.hidden && bump(), MARKET_TTL);
+    return () => {
+      listeners.delete(bump);
+      clearInterval(id);
+    };
   }, []);
   useEffect(() => {
     let alive = true;
     setState((s) => (s.error ? { data: null, error: null } : s));
-    loadMarket().then((data) => alive && setState({ data, error: null }), (e) => alive && setState({ data: null, error: e.message }));
+    // 배경 갱신이 실패하면 보던 값을 그대로 둠
+    loadMarket().then((data) => alive && setState({ data, error: null }), (e) => alive && setState((s) => (s.data ? s : { data: null, error: e.message })));
     return () => {
       alive = false;
     };

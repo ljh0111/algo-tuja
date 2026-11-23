@@ -3,33 +3,40 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { FearGreedCard } from "@/components/FearGreed";
+import { asOfLabel } from "@/components/ui";
 
 const won = (v) => `${Math.round(v).toLocaleString("ko-KR")}원`;
-const shortDate = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
 const jo = (v) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}조원` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억원`);
 
 // 같은 종목 응답을 요약 카드와 차트가 나눠 씁니다 (요청 1번).
 const cache = new Map(); // ticker -> { t: 저장 시각, p: Promise }
-const TTL = 60 * 60 * 1000; // 1시간 지나면 다시 받음
+const TTL = 60 * 1000; // 장중 시세가 1분마다 바뀌므로 1분 지나면 다시 받음
+function load(ticker) {
+  const hit = cache.get(ticker);
+  if (hit && Date.now() - hit.t <= TTL) return hit.p;
+  const p = fetch(`/api/company/${ticker}/sentiment`)
+    .then((r) => r.json())
+    .catch((e) => ({ error: e.message }))
+    .then((d) => {
+      if (d.error) cache.delete(ticker); // 실패는 다음에 다시 시도
+      return d;
+    });
+  cache.set(ticker, { t: Date.now(), p });
+  return p;
+}
 export function useStockSentiment(ticker) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let alive = true;
     setData(null);
-    if (!cache.has(ticker) || Date.now() - cache.get(ticker).t > TTL) {
-      cache.set(ticker, { t: Date.now(), p:
-        fetch(`/api/company/${ticker}/sentiment`)
-          .then((r) => r.json())
-          .catch((e) => ({ error: e.message }))
-          .then((d) => {
-            if (d.error) cache.delete(ticker); // 실패는 다음에 다시 시도
-            return d;
-          })
-      });
-    }
-    cache.get(ticker).p.then((d) => alive && setData(d));
+    // 배경 갱신이 실패하면 보던 값을 그대로 둠
+    const pull = () => load(ticker).then((d) => alive && setData((prev) => (d.error && prev && !prev.error ? prev : d)));
+    pull();
+    // 페이지를 열어 둔 동안 1분마다 새로 받아 장중 시세 반영 (화면이 안 보일 땐 건너뜀)
+    const id = setInterval(() => !document.hidden && pull(), TTL);
     return () => {
       alive = false;
+      clearInterval(id);
     };
   }, [ticker]);
   return data;
@@ -62,7 +69,7 @@ export default function StockSentiment({ ticker, name }) {
         </span>
       </div>
       <div className="mt-0.5 text-xs text-ink-faint">
-        {shortDate(price.date)} 종가 · 시가총액 {jo(price.marketCap)}
+        {asOfLabel(price.date, data.live)} · 시가총액 {jo(price.marketCap)}
       </div>
 
       <div className="mt-4">

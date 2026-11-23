@@ -18,7 +18,7 @@ const TABS = [
   ["checkpoints", "체크포인트"],
   ["thesis", "투자 논리"],
 ];
-import { SourceBadge, FlowChain, SectionLabel, CompanyLogo } from "@/components/ui";
+import { SourceBadge, FlowChain, SectionLabel, CompanyLogo, asOfLabel } from "@/components/ui";
 import TermLookup from "@/components/TermLookup";
 import StockSentiment, { useStockSentiment } from "@/components/StockSentiment";
 import PriceChart from "@/components/PriceChart";
@@ -220,7 +220,6 @@ function InvestmentCheck({ company, businesses, issues, initialReason, onClose }
 }
 
 /* ----------------------------- 한눈 요약 ----------------------------- */
-const ymd = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
 
 // 증감은 색뿐 아니라 화살표·부호 글자로도 표시
 function delta(pct, digits = 1) {
@@ -390,7 +389,7 @@ export default function CompanyView({ ticker }) {
           {pd.dir > 0 ? "상승" : pd.dir < 0 ? "하락" : "보합"} {pd.text}
         </span>
       ),
-      meta: price ? `${ymd(price.date)} 종가 · 전일 대비` : "",
+      meta: price ? `${asOfLabel(price.date, sentiment.live)} · 전일 대비` : "",
     },
     {
       label: "실적", href: "#financials",
@@ -405,7 +404,7 @@ export default function CompanyView({ ticker }) {
       state: sLoading ? "loading" : fg ? "ok" : "missing",
       value: fg ? `${fg.score}점` : "",
       detail: fg?.label,
-      meta: fg?.date ? `${ymd(fg.date)} 기준` : "",
+      meta: fg?.date ? asOfLabel(fg.date, fg.live) : "",
     },
     {
       label: "볼 것", href: "#checkpoints",

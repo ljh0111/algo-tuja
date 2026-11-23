@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { correlation, labelFor } from "@/lib/fearGreed.mjs";
+import { asOfLabel } from "@/components/ui";
 
 // CNN처럼 공포일수록 붉게, 탐욕일수록 초록으로. 구간 경계도 CNN과 동일.
 export const BANDS = [
@@ -174,7 +175,6 @@ function TrendChart({ history, indexLabel }) {
   );
 }
 
-const shortDate = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8))}일` : "");
 
 /** (compact: 게이지·점수만 먼저, 비교·추이는 접기) 게이지 + 점수 + 비교 시점 + 추이 + 구성 지표. title/explain만 바꿔 시장·종목 모두에 씁니다. */
 export function FearGreedCard({ fg, title, explain, indexLabel, compact = false }) {
@@ -248,7 +248,7 @@ export function FearGreedCard({ fg, title, explain, indexLabel, compact = false 
     <div className={`rounded-xl bg-paper px-4 ${compact ? "pb-3" : "pb-4"} pt-3`}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <div className="text-sm font-semibold text-ink">{title}</div>
-        <div className="text-xs text-ink-faint">{shortDate(fg.date)} 종가</div>
+        <div className="text-xs text-ink-faint">{asOfLabel(fg.date, fg.live)}</div>
       </div>
 
       <div className="mt-2 flex flex-col items-center">

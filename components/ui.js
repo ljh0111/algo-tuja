@@ -22,6 +22,15 @@ export function SourceBadge({ label }) {
   );
 }
 
+// 기준 시점 표시: 장중이면 "장중 잠정 · 14:20"(한국시간), 장 마감 뒤 공식 데이터 전이면 "11월 24일 종가(잠정)"
+export function asOfLabel(date, live) {
+  const d = date ? `${Number(date.slice(4, 6))}월 ${Number(date.slice(6, 8))}일` : "";
+  if (!live) return `${d} 종가`;
+  if (!live.open) return `${d} 종가(잠정)`;
+  const t = new Date(live.at).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
+  return `장중 잠정 · ${t}`;
+}
+
 // 기업 로고: 네이버 증권 로고 이미지를 쓰고, 없거나(404) 막히면 첫 글자 상자로 대체
 // shortcut: 비공식 이미지 주소라 언제든 막힐 수 있음, 그때는 로고 파일을 직접 두는 방식으로 바꿀 것
 export function CompanyLogo({ ticker, name, size = 44 }) {
