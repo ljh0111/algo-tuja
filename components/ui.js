@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck } from "lucide-react";
 
 export function SourceBadge({ label }) {
@@ -19,6 +19,32 @@ export function SourceBadge({ label }) {
         </div>
       )}
     </span>
+  );
+}
+
+// 기업 로고: 네이버 증권 로고 이미지를 쓰고, 없거나(404) 막히면 첫 글자 상자로 대체
+// shortcut: 비공식 이미지 주소라 언제든 막힐 수 있음, 그때는 로고 파일을 직접 두는 방식으로 바꿀 것
+export function CompanyLogo({ ticker, name, size = 44 }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [ticker]);
+  const box = { width: size, height: size };
+  if (failed || !/^\d{6}$/.test(ticker)) {
+    return (
+      <div style={{ ...box, fontSize: size * 0.4 }} className="flex shrink-0 items-center justify-center rounded-xl bg-ink font-bold text-white" aria-hidden="true">
+        {name?.slice(0, 1)}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- 외부 SVG를 작게 그대로 표시
+    <img
+      src={`https://ssl.pstatic.net/imgstock/fn/real/logo/stock/Stock${ticker}.svg`}
+      alt=""
+      style={box}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="shrink-0 rounded-xl border border-line bg-white object-contain"
+    />
   );
 }
 

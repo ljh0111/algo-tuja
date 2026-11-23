@@ -9,15 +9,15 @@ const shortDate = (d) => (d ? `${Number(d.slice(4, 6))}월 ${Number(d.slice(6, 8
 const jo = (v) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}조원` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억원`);
 
 // 같은 종목 응답을 요약 카드와 차트가 나눠 씁니다 (요청 1번).
-const cache = new Map();
+const cache = new Map(); // ticker -> { t: 저장 시각, p: Promise }
+const TTL = 60 * 60 * 1000; // 1시간 지나면 다시 받음
 export function useStockSentiment(ticker) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let alive = true;
     setData(null);
-    if (!cache.has(ticker)) {
-      cache.set(
-        ticker,
+    if (!cache.has(ticker) || Date.now() - cache.get(ticker).t > TTL) {
+      cache.set(ticker, { t: Date.now(), p:
         fetch(`/api/company/${ticker}/sentiment`)
           .then((r) => r.json())
           .catch((e) => ({ error: e.message }))
@@ -25,9 +25,9 @@ export function useStockSentiment(ticker) {
             if (d.error) cache.delete(ticker); // 실패는 다음에 다시 시도
             return d;
           })
-      );
+      });
     }
-    cache.get(ticker).then((d) => alive && setData(d));
+    cache.get(ticker).p.then((d) => alive && setData(d));
     return () => {
       alive = false;
     };

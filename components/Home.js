@@ -6,6 +6,7 @@ import { Search, ChevronRight, Loader2, Heart, Clock, Newspaper, Building2, BarC
 import { COMPANY_LIST } from "@/lib/companies";
 import MarketPanel, { MarketStrip } from "@/components/MarketPanel";
 import AdSlot from "@/components/AdSlot";
+import { CompanyLogo } from "@/components/ui";
 import { getFavorites, getRecent } from "@/lib/watchlist";
 
 export default function Home() {
@@ -37,25 +38,34 @@ export default function Home() {
   useEffect(() => {
     setStatus("idle");
     setOpen(true);
+    let active = true; // 오래된 응답이 새 결과를 덮어쓰지 않게
+    const ctrl = new AbortController();
     if (!q.trim()) {
       setMatches([]);
+      setLoading(false);
       return;
     }
     setLoading(true);
     const timer = setTimeout(() => {
-      fetch(`/api/search-companies?q=${encodeURIComponent(q)}`)
+      fetch(`/api/search-companies?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
         .then((data) => {
+          if (!active) return;
           setMatches(data.results || []);
           setStatus("done");
         })
-        .catch(() => {
+        .catch((e) => {
+          if (!active || e?.name === "AbortError") return;
           setMatches([]);
           setStatus("error");
         })
-        .finally(() => setLoading(false));
+        .finally(() => active && setLoading(false));
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      ctrl.abort();
+      clearTimeout(timer);
+    };
   }, [q]);
 
   // 검색 결과 창 바깥을 누르면 닫기
@@ -111,7 +121,7 @@ export default function Home() {
           <div className="absolute z-10 mt-2 w-full animate-pop overflow-hidden rounded-2xl bg-paper-raised text-left shadow-lg">
             {matches.map((c) => (
               <button key={c.ticker} onClick={() => go(c.ticker)} className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-black/5 [&>svg]:transition-transform hover:[&>svg]:translate-x-0.5">
-                <span className="text-ink">{c.name} <span className="text-ink-faint">· {c.ticker}</span></span>
+                <span className="flex items-center gap-2.5 text-ink"><CompanyLogo ticker={c.ticker} name={c.name} size={28} />{c.name} <span className="text-ink-faint">· {c.ticker}</span></span>
                 <ChevronRight size={15} className="text-ink-faint" />
               </button>
             ))}

@@ -16,12 +16,24 @@ export const maxDuration = 60;
 // 에러로 끝난 호출은 저장되지 않아 다음 요청에서 다시 시도합니다.
 const DAY = 86400;
 const cachedFinancials = unstable_cache(fetchFinancialHighlights, ["dart-financials"], { revalidate: DAY });
-const cachedProfile = unstable_cache(generateCompanyProfile, ["ai-company-profile"], { revalidate: DAY });
+// 검증을 캐시 함수 안에서 해서, 형식이 잘못된 AI 출력은 던져져 저장되지 않습니다.
+const isStr = (v) => typeof v === "string" && v.trim() !== "";
+async function generateValidProfile(args) {
+  const p = await generateCompanyProfile(args);
+  const ok =
+    p && isStr(p.oneLiner) && isStr(p.industry) &&
+    Array.isArray(p.businesses) && p.businesses.every((b) => b && isStr(b.name) && typeof b.pct === "number" && Number.isFinite(b.pct)) &&
+    Array.isArray(p.checkpoints) && p.checkpoints.every((c) => c && isStr(c.title));
+  if (!ok) throw new Error("AI 응답 형식이 올바르지 않습니다.");
+  return p;
+}
+const cachedProfile = unstable_cache(generateValidProfile, ["ai-company-profile"], { revalidate: DAY });
 
 export async function GET(request, { params }) {
   const ticker = params.ticker;
   let company = getCompanyByTicker(ticker);
   let aiGenerated = false;
+  let prefetched = null; // 동시에 받아둔 재무 결과 (AI 생성 기업만)
 
   if (!company) {
     // 손으로 정리해둔 4개 기업이 아니면, DART 고유번호 목록에서 종목을 찾고
@@ -36,32 +48,42 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "등록되지 않은 종목코드입니다." }, { status: 404 });
     }
 
-    try {
-      const profile = await cachedProfile({ companyName: corp.name, ticker });
-      company = {
-        ticker,
-        corpCode: corp.corpCode,
-        name: corp.name,
-        industry: profile.industry,
-        oneLiner: profile.oneLiner,
-        products: profile.products,
-        customers: profile.customers,
-        competitors: profile.competitors,
-        businesses: profile.businesses,
-        businessExplain: profile.businessExplain,
-        businessSource: "AI가 생성한 추정치입니다 — 실제 사업보고서로 검증이 필요합니다.",
-        checkpoints: profile.checkpoints,
-      };
-      aiGenerated = true;
-    } catch (e) {
-      return NextResponse.json({ error: `기업 정보를 생성하지 못했습니다: ${e.message}` }, { status: 500 });
+    // 프로필(AI)과 재무(DART)는 서로 기다릴 필요가 없어 동시에 시작합니다.
+    const [profileRes, finRes] = await Promise.allSettled([
+      cachedProfile({ companyName: corp.name, ticker }),
+      cachedFinancials(corp.corpCode),
+    ]);
+    if (profileRes.status === "rejected") {
+      return NextResponse.json({ error: `기업 정보를 생성하지 못했습니다: ${profileRes.reason?.message}` }, { status: 500 });
     }
+    const profile = profileRes.value;
+    company = {
+      ticker,
+      corpCode: corp.corpCode,
+      name: corp.name,
+      industry: profile.industry,
+      oneLiner: profile.oneLiner,
+      products: profile.products,
+      customers: profile.customers,
+      competitors: profile.competitors,
+      businesses: profile.businesses,
+      businessExplain: profile.businessExplain,
+      businessSource: "AI가 생성한 추정치입니다 — 실제 사업보고서로 검증이 필요합니다.",
+      checkpoints: profile.checkpoints,
+    };
+    aiGenerated = true;
+    prefetched = finRes;
   }
 
   let financials = null;
   let financialsError = null;
   try {
-    financials = await cachedFinancials(company.corpCode);
+    if (prefetched) {
+      if (prefetched.status === "rejected") throw prefetched.reason;
+      financials = prefetched.value;
+    } else {
+      financials = await cachedFinancials(company.corpCode);
+    }
   } catch (e) {
     financialsError = e.message;
   }

@@ -5,17 +5,24 @@ import { checkInvestmentLogic } from "@/lib/ai";
 export const maxDuration = 60;
 
 export async function POST(request) {
-  const body = await request.json();
-  const { companyName, context, userReason } = body;
-
-  if (!companyName || !userReason?.trim()) {
-    return NextResponse.json({ error: "companyName과 userReason이 필요합니다." }, { status: 400 });
-  }
-
   try {
-    const result = await checkInvestmentLogic({ companyName, context, userReason });
+    const { companyName, context, userReason } = await request.json();
+
+    if (typeof companyName !== "string" || typeof userReason !== "string" || !companyName.trim() || !userReason.trim()) {
+      return NextResponse.json({ error: "companyName과 userReason이 필요합니다." }, { status: 400 });
+    }
+    if (context !== undefined && context !== null && typeof context !== "string") {
+      return NextResponse.json({ error: "context 형식이 올바르지 않습니다." }, { status: 400 });
+    }
+    // 길이 제한: AI 비용·프롬프트 남용 방지
+    if (companyName.length > 100 || userReason.length > 2000 || (context || "").length > 2000) {
+      return NextResponse.json({ error: "입력이 너무 깁니다." }, { status: 413 });
+    }
+
+    const result = await checkInvestmentLogic({ companyName, context: context || "", userReason });
     return NextResponse.json(result);
   } catch (e) {
+    if (e instanceof SyntaxError) return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

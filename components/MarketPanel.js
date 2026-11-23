@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, ChevronDown, ArrowUp, ArrowDown, Gauge as GaugeIcon, MessageSquareText, BarChart3 } from "lucide-react";
 import { summarizeMarket } from "@/lib/marketSummary.mjs";
 import TermLookup from "@/components/TermLookup";
-import { FearGreedCard, Gauge, BANDS } from "@/components/FearGreed";
+import { FearGreedCard, Gauge, BANDS, bandOf } from "@/components/FearGreed";
 
 const TILES = [
   { group: "kr", key: "kospi", label: "코스피", hint: "국내 대형주 전체 흐름", fmt: "index" },
@@ -78,8 +78,12 @@ function Tile({ t, d }) {
 
 // 상단 요약과 아래 상세 패널이 요청 하나를 나눠 씁니다. 실패하면 retry()로 둘 다 다시 받습니다.
 let marketPromise = null;
+let marketAt = 0;
+const MARKET_TTL = 60 * 60 * 1000; // 1시간 지나면 다시 받음
 const listeners = new Set();
 function loadMarket() {
+  if (marketPromise && Date.now() - marketAt > MARKET_TTL) marketPromise = null;
+  if (!marketPromise) marketAt = Date.now();
   marketPromise ??= fetch("/api/market")
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((d) => (d.error ? Promise.reject(new Error(d.error)) : d))
@@ -196,7 +200,7 @@ function openMarket(e, key) {
 
 function GaugeTile({ g, data, link }) {
   const r = data ? g.pick(data) : null;
-  const band = r ? g.bands.find((b) => r.pos >= b.from && r.pos <= b.to) ?? g.bands[0] : null;
+  const band = r ? (g.bands === BANDS ? bandOf(r.pos) : g.bands.find((b) => r.pos >= b.from && r.pos <= b.to) ?? g.bands[0]) : null;
   const Box = link ? "a" : "div";
   return (
     <li>

@@ -8,7 +8,9 @@ export default function Shell({ children }) {
       <header className="z-30 border-b border-[#DCE6F7] bg-[#EEF4FD]/95 backdrop-blur lg:sticky lg:top-0">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 sm:px-6 lg:max-w-6xl lg:px-8">
           <Link href="/" className="flex min-h-11 items-center gap-2" aria-label="알고투자 홈">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">알</div>
+            {/* 앱 아이콘(app/icon.svg)과 같은 그림 */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
             <span className="whitespace-nowrap font-serif text-sm font-semibold text-ink">알고투자</span>
           </Link>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, X } from "lucide-react";
 
 // containerRef 안에서 사용자가 텍스트를 드래그 선택했을 때만 작은 "설명보기" 버튼이 뜹니다.
@@ -8,6 +8,11 @@ import { Loader2, X } from "lucide-react";
 export default function TermLookup({ containerRef, context }) {
   const [selection, setSelection] = useState(null); // { text, x, y }
   const [popup, setPopup] = useState(null); // { text, status, explanation }
+  const reqId = useRef(0); // 닫거나 새로 찾으면 이전 응답은 무시
+  const closePopup = () => {
+    reqId.current++;
+    setPopup(null);
+  };
 
   useEffect(() => {
     function handleSelectionChange() {
@@ -43,6 +48,7 @@ export default function TermLookup({ containerRef, context }) {
   const lookup = useCallback(async () => {
     if (!selection) return;
     const term = selection.text;
+    const id = ++reqId.current;
     setPopup({ text: term, status: "loading", explanation: "" });
     setSelection(null);
     window.getSelection()?.removeAllRanges();
@@ -55,8 +61,10 @@ export default function TermLookup({ containerRef, context }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "설명을 가져오지 못했어요.");
+      if (id !== reqId.current) return;
       setPopup({ text: term, status: "done", explanation: data.explanation });
     } catch (e) {
+      if (id !== reqId.current) return;
       setPopup({ text: term, status: "error", explanation: "" });
     }
   }, [selection, context]);
@@ -78,7 +86,7 @@ export default function TermLookup({ containerRef, context }) {
           <div className="animate-sheet-up rounded-xl border p-4 shadow-xl" style={{ background: "#FFFFFF", borderColor: "#E5E8EB" }}>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-semibold" style={{ color: "#3182F6" }}>{popup.text}</span>
-              <button onClick={() => setPopup(null)} aria-label="닫기" className="rounded-full p-1.5 hover:bg-black/5">
+              <button onClick={closePopup} aria-label="닫기" className="rounded-full p-1.5 hover:bg-black/5">
                 <X size={16} style={{ color: "#5B6573" }} />
               </button>
             </div>

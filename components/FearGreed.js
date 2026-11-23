@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { correlation } from "@/lib/fearGreed.mjs";
+import { correlation, labelFor } from "@/lib/fearGreed.mjs";
 
 // CNN처럼 공포일수록 붉게, 탐욕일수록 초록으로. 구간 경계도 CNN과 동일.
 export const BANDS = [
@@ -12,7 +12,8 @@ export const BANDS = [
   { from: 55, to: 75, label: ["탐욕"], color: "#5FD49A", text: "#177245", onDark: false },
   { from: 75, to: 100, label: ["극단적", "탐욕"], color: "#16A34A", text: "#116B32" },
 ];
-export const bandOf = (s) => BANDS.find((b) => s >= b.from && s <= b.to) ?? BANDS[2];
+// 서버 labelFor와 같은 경계(25·45는 위 구간)를 쓰도록 라벨로 고릅니다.
+export const bandOf = (s) => BANDS.find((b) => b.label.join(" ") === labelFor(s)) ?? BANDS[2];
 
 const CX = 160, CY = 160, R_OUT = 132, R_IN = 92;
 const polar = (r, t) => {

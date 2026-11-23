@@ -18,7 +18,7 @@ const TABS = [
   ["checkpoints", "체크포인트"],
   ["thesis", "투자 논리"],
 ];
-import { SourceBadge, FlowChain, SectionLabel } from "@/components/ui";
+import { SourceBadge, FlowChain, SectionLabel, CompanyLogo } from "@/components/ui";
 import TermLookup from "@/components/TermLookup";
 import StockSentiment, { useStockSentiment } from "@/components/StockSentiment";
 import PriceChart from "@/components/PriceChart";
@@ -36,6 +36,7 @@ function formatWon(n) {
 // 전년 대비 증감: 한국 시장 관례대로 상승=빨강, 하락=파랑
 function YoY({ now, prev }) {
   if (!prev) return <div className="mt-0.5 text-xs text-ink-faint">전년 {formatWon(prev)}</div>;
+  if (!Number.isFinite(now) || !Number.isFinite(prev)) return <div className="mt-0.5 text-xs text-ink-faint">전년 대비 비교 불가</div>;
   const pct = ((now - prev) / Math.abs(prev)) * 100;
   const up = pct >= 0;
   return (
@@ -443,7 +444,7 @@ export default function CompanyView({ ticker }) {
       {/* Section 1 */}
       <div className="mb-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-lg font-bold text-white" aria-hidden="true">{company.name.slice(0, 1)}</div>
+          <CompanyLogo ticker={company.ticker} name={company.name} />
           <div>
             <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-ink">
               {company.name} <span className="text-sm font-medium text-ink-faint">{company.ticker}</span>
