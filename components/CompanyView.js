@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, LineChar
 import {
   ChevronDown, ChevronRight, ExternalLink, X, ArrowRight,
   Info, Check, AlertCircle, Loader2, ArrowLeft, TrendingUp, Heart,
-  Building2, LineChart as LineChartIcon, BarChart3, Newspaper, ListChecks, ClipboardCheck, LayoutDashboard,
+  Building2, LineChart as LineChartIcon, BarChart3, Newspaper, ListChecks, ClipboardCheck, LayoutDashboard, Sprout,
 } from "lucide-react";
 import { addRecent, isFavorite, toggleFavorite } from "@/lib/watchlist";
 
@@ -15,6 +15,7 @@ const TABS = [
   ["chart", "차트"],
   ["financials", "실적"],
   ["issues", "이슈"],
+  ["growth", "성장 신호"],
   ["checkpoints", "체크포인트"],
   ["thesis", "투자 논리"],
 ];
@@ -254,7 +255,7 @@ function GlanceCard({ label, href, state, value, detail, meta, textual = false, 
           <span className="text-sm text-ink-faint">자료 없음</span>
         ) : (
           <>
-            <span className={textual ? "break-words text-base font-semibold leading-snug text-ink" : `break-words text-2xl font-bold leading-tight tracking-tight tabular-nums ${tone}`}>
+            <span className={textual ? "break-words text-base font-semibold leading-snug text-ink" : `whitespace-nowrap ${String(value).length > 8 ? "text-xl" : "text-2xl"} font-bold leading-tight tracking-tight tabular-nums ${tone}`}>
               {value}
             </span>
             <span className="text-sm font-medium leading-snug text-ink-soft">{detail}</span>
@@ -279,6 +280,99 @@ function GlanceSection({ cards, titleId, className, gridClass }) {
 }
 
 /* ----------------------------- 기업 상세 메인 ----------------------------- */
+/* ----------------------------- 미래 성장 신호 ----------------------------- */
+// 신호 색: 긍정은 파랑, 부정은 주황·빨강. 주가 등락색(자홍·파랑 화살표)과 섞이지 않게 글자와 함께 표시
+const SIGNAL_TONE = {
+  2: { text: "#1B64DA", bg: "#E8F3FF" },
+  1: { text: "#1B64DA", bg: "#E8F3FF" },
+  0: { text: "#4E5968", bg: "#F2F4F6" },
+  "-1": { text: "#B54708", bg: "#FFF1EA" },
+  "-2": { text: "#C81E2A", bg: "#FDECEE" },
+};
+
+function GrowthSection({ ticker, company }) {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, data: null, error: null });
+    fetch(`/api/company/${ticker}/growth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyName: company.name, corpCode: company.corpCode, oneLiner: company.oneLiner, businesses: company.businesses }),
+    })
+      .then((res) => res.json())
+      .then((json) => !cancelled && setState({ loading: false, data: json.error ? null : json, error: json.error || null }))
+      .catch((e) => !cancelled && setState({ loading: false, data: null, error: e.message }));
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker, company]);
+
+  const { loading, data, error } = state;
+  return (
+    <section id="growth" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "200ms" }}>
+      <SectionLabel eyebrow="05" title="앞으로 성장할 신호가 보이나요?" icon={Sprout} />
+      {loading && (
+        <div className="flex items-center gap-2 rounded-2xl bg-paper-raised px-4 py-4 text-xs text-ink-faint">
+          <Loader2 size={14} className="animate-spin" /> 최근 기사와 공시에서 성장 신호를 찾는 중이에요...
+        </div>
+      )}
+      {!loading && error && (
+        <div className="flex items-center gap-2 rounded-2xl bg-paper-raised px-4 py-4 text-xs text-red"><AlertCircle size={13} /> 성장 신호를 분석하지 못했어요: {error}</div>
+      )}
+      {data && (
+        <div className="rounded-2xl bg-paper-raised p-5">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-sm font-semibold text-ink-soft">미래 성장 신호</span>
+            {data.score !== null && <span className="text-3xl font-bold tracking-tight text-ink">{data.score}</span>}
+            <span className="rounded-md bg-paper px-2 py-0.5 text-xs font-bold text-ink-soft">{data.label}</span>
+          </div>
+          {data.oneLine && <p className="mt-2 text-sm leading-relaxed text-ink">{data.oneLine}</p>}
+          <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+            앞으로 주가가 오를지 알려주는 점수가 아니에요. 최근 6개월 기사 {data.sources.news}건과 공시 {data.sources.disclosures}건에 나타난 변화를 AI가 6개 항목으로 나눠 정리했어요.
+            근거가 있는 항목만 점수에 반영되고, 50이 중립이에요. 매수·매도 판단은 직접 하셔야 해요.
+          </p>
+          {data.partial && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-[#B54708]">
+              <AlertCircle size={13} aria-hidden="true" /> {data.sources.newsError ? "기사" : "공시"}를 불러오지 못해 일부 근거만 반영했어요. 잠시 후 다시 보면 달라질 수 있어요.
+            </p>
+          )}
+          <ul className="mt-4 divide-y divide-line border-t border-line">
+            {data.factors.map((f) => {
+              const tone = SIGNAL_TONE[f.signal];
+              return (
+                <li key={f.key} className="py-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold text-ink">
+                      {f.label} <span className="font-normal text-ink-faint">· {f.desc}</span>
+                    </span>
+                    <span className="shrink-0 rounded-md px-2 py-0.5 text-xs font-bold" style={{ color: tone.text, background: tone.bg }}>
+                      {f.signal > 0 ? "+" : ""}{f.signal} {f.signalLabel}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{f.summary}</p>
+                  {f.evidence.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {f.evidence.map((e, i) => (
+                        <a key={i} href={e.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-1.5 text-xs text-brand-blue hover:underline">
+                          <ExternalLink size={11} className="mt-0.5 shrink-0" aria-hidden="true" />
+                          <span>
+                            <span className="font-semibold">[{e.type}{e.date ? ` ${Number(e.date.slice(4, 6))}/${Number(e.date.slice(6, 8))}` : ""}]</span> {e.title}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function CompanyView({ ticker }) {
   const router = useRouter();
   const contentRef = useRef(null);
@@ -625,11 +719,13 @@ export default function CompanyView({ ticker }) {
         </div>
       </section>
 
+      <GrowthSection ticker={ticker} company={company} />
+
       {/* Section 6 — 체크포인트 */}
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_COMPANY} className="mb-8 lg:mb-10" />
 
       <section id="checkpoints" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "240ms" }}>
-        <SectionLabel eyebrow="05" title="앞으로 무엇을 봐야 할까요?" icon={ListChecks} />
+        <SectionLabel eyebrow="06" title="앞으로 무엇을 봐야 할까요?" icon={ListChecks} />
         <div className="space-y-2.5">
           {company.checkpoints.map((cp, i) => {
             const open = openCheckpoint === i;
@@ -649,7 +745,7 @@ export default function CompanyView({ ticker }) {
 
       {/* Section 7 — 투자 논리 점검 */}
       <section id="thesis" className="scroll-mt-32 animate-fade-up" style={{ animationDelay: "320ms" }}>
-        <SectionLabel eyebrow="06" title="왜 이 회사에 투자하려고 하시나요?" icon={ClipboardCheck} />
+        <SectionLabel eyebrow="07" title="왜 이 회사에 투자하려고 하시나요?" icon={ClipboardCheck} />
         <div className="rounded-2xl bg-paper-raised p-5">
           <p className="mb-3 text-sm leading-relaxed text-ink-soft">
             AI가 투자 여부를 판단해주지 않아요. 대신 당신이 가진 투자 논리를 함께 점검해드립니다.
