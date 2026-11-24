@@ -15,12 +15,13 @@ const TABS = [
   ["chart", "차트"],
   ["financials", "실적"],
   ["issues", "이슈"],
-  ["growth", "성장 신호"],
+  ...(GROWTH_ENABLED ? [["growth", "성장 신호"]] : []), // 미래 성장 신호는 스위치로 중지 가능 (lib/flags.js)
   ["checkpoints", "체크포인트"],
   ["thesis", "투자 논리"],
 ];
 import { SourceBadge, FlowChain, SectionLabel, CompanyLogo, asOfLabel } from "@/components/ui";
 import TermLookup from "@/components/TermLookup";
+import { GROWTH_ENABLED } from "@/lib/flags";
 import StockSentiment, { useStockSentiment } from "@/components/StockSentiment";
 import PriceChart from "@/components/PriceChart";
 import AdSlot from "@/components/AdSlot";
@@ -719,13 +720,13 @@ export default function CompanyView({ ticker }) {
         </div>
       </section>
 
-      <GrowthSection ticker={ticker} company={company} />
+      {GROWTH_ENABLED && <GrowthSection ticker={ticker} company={company} />}
 
       {/* Section 6 — 체크포인트 */}
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_COMPANY} className="mb-8 lg:mb-10" />
 
       <section id="checkpoints" className="mb-8 lg:mb-10 scroll-mt-32 animate-fade-up" style={{ animationDelay: "240ms" }}>
-        <SectionLabel eyebrow="06" title="앞으로 무엇을 봐야 할까요?" icon={ListChecks} />
+        <SectionLabel eyebrow={GROWTH_ENABLED ? "06" : "05"} title="앞으로 무엇을 봐야 할까요?" icon={ListChecks} />
         <div className="space-y-2.5">
           {company.checkpoints.map((cp, i) => {
             const open = openCheckpoint === i;
@@ -745,7 +746,7 @@ export default function CompanyView({ ticker }) {
 
       {/* Section 7 — 투자 논리 점검 */}
       <section id="thesis" className="scroll-mt-32 animate-fade-up" style={{ animationDelay: "320ms" }}>
-        <SectionLabel eyebrow="07" title="왜 이 회사에 투자하려고 하시나요?" icon={ClipboardCheck} />
+        <SectionLabel eyebrow={GROWTH_ENABLED ? "07" : "06"} title="왜 이 회사에 투자하려고 하시나요?" icon={ClipboardCheck} />
         <div className="rounded-2xl bg-paper-raised p-5">
           <p className="mb-3 text-sm leading-relaxed text-ink-soft">
             AI가 투자 여부를 판단해주지 않아요. 대신 당신이 가진 투자 논리를 함께 점검해드립니다.

@@ -4,6 +4,7 @@ import { fetchNews } from "@/lib/news";
 import { fetchMajorDisclosures } from "@/lib/dart";
 import { assessGrowthSignals } from "@/lib/ai";
 import { scoreGrowth } from "@/lib/growth.mjs";
+import { GROWTH_ENABLED } from "@/lib/flags";
 
 // 미래 성장 신호: 성장 관련 기사 + 최근 6개월 주요 공시 → AI가 항목별 신호 판정 → 점수는 정해진 식으로 계산.
 // 기사·공시가 자주 바뀌지 않아 6시간 저장합니다. 에러와, 기사·공시 중 한쪽이라도 못 받은 결과는 저장하지 않습니다.
@@ -55,6 +56,8 @@ async function analyzeComplete(input) {
 const cachedAnalyze = unstable_cache(analyzeComplete, ["growth-v7"], { revalidate: 21600 });
 
 export async function POST(request, { params }) {
+  // 중지 상태면 기사·공시·AI를 하나도 부르지 않고 바로 거절 (비용 0)
+  if (!GROWTH_ENABLED) return NextResponse.json({ error: "미래 성장 신호는 잠시 중지했어요." }, { status: 503 });
   let body;
   try {
     body = await request.json();
