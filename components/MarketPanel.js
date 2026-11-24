@@ -80,14 +80,22 @@ function Tile({ t, d }) {
 // 상단 요약과 아래 상세 패널이 요청 하나를 나눠 씁니다. 실패하면 retry()로 둘 다 다시 받습니다.
 let marketPromise = null;
 let marketAt = 0;
-const MARKET_TTL = 60 * 1000; // 장중 값이 1분마다 바뀌므로 1분 지나면 다시 받음
+// 국내·미국 중 한 곳이라도 장이 열려 있으면 10초마다, 둘 다 닫혀 있으면 1분마다 새로 받음
+const LIVE_MS = 10 * 1000;
+const IDLE_MS = 60 * 1000;
+let marketOpen = false; // 마지막 응답 기준
 const listeners = new Set();
 function loadMarket() {
-  if (marketPromise && Date.now() - marketAt > MARKET_TTL) marketPromise = null;
+  // 1초 여유: 10초 타이머가 저장 시간보다 아주 조금 먼저 울려도 새로 받게
+  if (marketPromise && Date.now() - marketAt > (marketOpen ? LIVE_MS : IDLE_MS) - 1000) marketPromise = null;
   if (!marketPromise) marketAt = Date.now();
   marketPromise ??= fetch("/api/market")
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-    .then((d) => (d.error ? Promise.reject(new Error(d.error)) : d))
+    .then((d) => {
+      if (d.error) throw new Error(d.error);
+      marketOpen = Boolean(d.live?.kr?.open || d.live?.us?.open);
+      return d;
+    })
     .catch((e) => {
       marketPromise = null;
       throw e;
@@ -100,8 +108,8 @@ function useMarket() {
   useEffect(() => {
     const bump = () => setAttempt((n) => n + 1);
     listeners.add(bump);
-    // 페이지를 열어 둔 동안 1분마다 새로 받아 장중 값을 반영 (화면이 안 보일 땐 건너뜀)
-    const id = setInterval(() => !document.hidden && bump(), MARKET_TTL);
+    // 페이지를 열어 둔 동안 10초마다 확인 (화면이 안 보일 땐 건너뜀). 장이 닫혀 있으면 loadMarket이 1분 동안 저장값을 줌
+    const id = setInterval(() => !document.hidden && bump(), LIVE_MS);
     return () => {
       listeners.delete(bump);
       clearInterval(id);

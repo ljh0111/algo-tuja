@@ -9,20 +9,25 @@ const won = (v) => `${Math.round(v).toLocaleString("ko-KR")}원`;
 const jo = (v) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}조원` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억원`);
 
 // 같은 종목 응답을 요약 카드와 차트가 나눠 씁니다 (요청 1번).
-const cache = new Map(); // ticker -> { t: 저장 시각, p: Promise }
-const TTL = 60 * 1000; // 장중 시세가 1분마다 바뀌므로 1분 지나면 다시 받음
+const cache = new Map(); // ticker -> { t: 저장 시각, p: Promise, open: 마지막 응답 기준 장 운영 여부 }
+// 장이 열려 있으면 10초마다, 닫혀 있으면 1분마다 새로 받음
+const LIVE_MS = 10 * 1000;
+const IDLE_MS = 60 * 1000;
 function load(ticker) {
   const hit = cache.get(ticker);
-  if (hit && Date.now() - hit.t <= TTL) return hit.p;
-  const p = fetch(`/api/company/${ticker}/sentiment`)
+  // 1초 여유: 10초 타이머가 저장 시간보다 아주 조금 먼저 울려도 새로 받게
+  if (hit && Date.now() - hit.t <= (hit.open ? LIVE_MS : IDLE_MS) - 1000) return hit.p;
+  const entry = { t: Date.now(), open: hit?.open ?? false };
+  entry.p = fetch(`/api/company/${ticker}/sentiment`)
     .then((r) => r.json())
     .catch((e) => ({ error: e.message }))
     .then((d) => {
       if (d.error) cache.delete(ticker); // 실패는 다음에 다시 시도
+      else entry.open = Boolean(d.live?.open);
       return d;
     });
-  cache.set(ticker, { t: Date.now(), p });
-  return p;
+  cache.set(ticker, entry);
+  return entry.p;
 }
 export function useStockSentiment(ticker) {
   const [data, setData] = useState(null);
@@ -32,8 +37,8 @@ export function useStockSentiment(ticker) {
     // 배경 갱신이 실패하면 보던 값을 그대로 둠
     const pull = () => load(ticker).then((d) => alive && setData((prev) => (d.error && prev && !prev.error ? prev : d)));
     pull();
-    // 페이지를 열어 둔 동안 1분마다 새로 받아 장중 시세 반영 (화면이 안 보일 땐 건너뜀)
-    const id = setInterval(() => !document.hidden && pull(), TTL);
+    // 페이지를 열어 둔 동안 10초마다 확인 (화면이 안 보일 땐 건너뜀). 장이 닫혀 있으면 load가 1분 동안 저장값을 줌
+    const id = setInterval(() => !document.hidden && pull(), LIVE_MS);
     return () => {
       alive = false;
       clearInterval(id);
